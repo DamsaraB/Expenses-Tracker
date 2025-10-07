@@ -1,8 +1,8 @@
+import { Ionicons } from '@expo/vector-icons';
 import { Tabs } from 'expo-router';
 import React from 'react';
 
 import { HapticTab } from '@/components/haptic-tab';
-import { IconSymbol } from '@/components/ui/icon-symbol';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 
@@ -20,14 +20,35 @@ export default function TabLayout() {
         name="index"
         options={{
           title: 'Home',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="house.fill" color={color} />,
+          tabBarIcon: ({ color }) => <Ionicons name="home" size={24} color={color} />,
         }}
       />
       <Tabs.Screen
-        name="explore"
+        name="expenses"
         options={{
-          title: 'Explore',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="paperplane.fill" color={color} />,
+          title: 'Expenses',
+          tabBarIcon: ({ color }) => <Ionicons name="receipt" size={24} color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="budget"
+        options={{
+          title: 'Budget',
+          tabBarIcon: ({ color }) => <Ionicons name="wallet" size={24} color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="savings"
+        options={{
+          title: 'Savings',
+          tabBarIcon: ({ color }) => <Ionicons name="trending-up" size={24} color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="reports"
+        options={{
+          title: 'Reports',
+          tabBarIcon: ({ color }) => <Ionicons name="bar-chart" size={24} color={color} />,
         }}
       />
     </Tabs>

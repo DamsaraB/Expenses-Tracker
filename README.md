@@ -1,50 +1,135 @@
-# Welcome to your Expo app 👋
+# Personal Finance Management App
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+A comprehensive Personal Finance Management app built with Expo, React Native, and TypeScript.
 
-## Get started
+## Features
 
-1. Install dependencies
+### Authentication
+- **Login Screen**: Email/password authentication with validation
+- **Signup Screen**: User registration with form validation
 
+### Main App Screens
+- **Home Screen**: Financial overview with quick actions and recent transactions
+- **Expenses Screen**: Track and manage expenses with categories
+- **Budget Screen**: Monitor monthly budgets and spending limits
+- **Savings Screen**: Set and track savings goals with progress indicators
+- **Reports Screen**: Visual analytics and financial reports
+
+## Tech Stack
+
+- **Framework**: Expo with React Native
+- **Language**: TypeScript
+- **Navigation**: Expo Router with Stack and Tab Navigation
+- **UI Components**: Custom components with React Native
+- **Icons**: Expo Vector Icons (Ionicons)
+
+## Project Structure
+
+```
+├── app/                          # App screens and navigation
+│   ├── (tabs)/                   # Tab navigation screens
+│   │   ├── _layout.tsx          # Tab navigation setup
+│   │   ├── index.tsx            # Home screen
+│   │   ├── expenses.tsx         # Expenses screen
+│   │   ├── budget.tsx           # Budget screen
+│   │   ├── savings.tsx          # Savings screen
+│   │   └── reports.tsx          # Reports screen
+│   ├── Login.tsx                # Login screen
+│   ├── Signup.tsx               # Signup screen
+│   └── _layout.tsx              # Root navigation setup
+├── components/                   # Reusable components
+│   └── ui/                      # UI components
+│       ├── Button.tsx           # Custom button component
+│       ├── Card.tsx             # Card container component
+│       ├── Input.tsx            # Input field component
+│       └── index.ts             # Component exports
+├── types/                       # TypeScript type definitions
+│   └── index.ts                 # All app types and interfaces
+├── data/                        # Mock data and constants
+│   └── mockData.ts              # Sample data for development
+└── constants/                   # App constants and themes
+    └── theme.ts                 # Color and theme definitions
+```
+
+## Navigation Flow
+
+1. **Authentication Flow**:
+   - App starts with Login screen
+   - Users can navigate to Signup screen
+   - After successful login, users are redirected to main app
+
+2. **Main App Flow**:
+   - Bottom tab navigation with 5 screens
+   - Home (overview), Expenses, Budget, Savings, Reports
+   - Each screen has its own functionality and data
+
+## Key Features
+
+### Home Screen
+- Monthly financial summary
+- Quick action buttons
+- Recent transactions list
+- Budget progress indicators
+
+### Expenses Screen
+- Add, edit, and delete expenses
+- Category-based organization
+- Real-time expense tracking
+- Visual expense breakdown
+
+### Budget Screen
+- Monthly budget overview
+- Category-wise budget tracking
+- Progress indicators
+- Budget tips and recommendations
+
+### Savings Screen
+- Multiple savings goals
+- Progress tracking with visual indicators
+- Goal management (add, edit, delete)
+- Savings tips and insights
+
+### Reports Screen
+- Visual charts and analytics
+- Expense breakdown by category
+- Budget performance metrics
+- Savings progress overview
+- Export and sharing capabilities
+
+## Getting Started
+
+1. Install dependencies:
    ```bash
    npm install
    ```
 
-2. Start the app
-
+2. Start the development server:
    ```bash
-   npx expo start
+   npm start
    ```
 
-In the output, you'll find options to open the app in a
+3. Run on your preferred platform:
+   ```bash
+   npm run ios      # iOS simulator
+   npm run android  # Android emulator
+   npm run web      # Web browser
+   ```
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+## Development Notes
 
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
+- All screens use TypeScript for type safety
+- Mock data is provided for development and testing
+- Components are designed to be reusable and extensible
+- Navigation is handled by Expo Router
+- UI follows modern design principles with clean, minimal styling
 
-## Get a fresh project
+## Future Enhancements
 
-When you're ready, run:
-
-```bash
-npm run reset-project
-```
-
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
-
-## Learn more
-
-To learn more about developing your project with Expo, look at the following resources:
-
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
-
-## Join the community
-
-Join our community of developers creating universal apps.
-
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+- Backend integration for real data
+- User authentication with secure APIs
+- Data persistence with local storage
+- Push notifications for budget alerts
+- Advanced analytics and insights
+- Multi-currency support
+- Expense categorization with ML
+- Bill reminders and tracking
