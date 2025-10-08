@@ -2,17 +2,18 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import React, { useState } from 'react';
 import {
-    Alert,
-    KeyboardAvoidingView,
-    Platform,
-    SafeAreaView,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
+import { registerUser } from '../services/database';
 import { SignupFormData } from '../types';
 
 export default function SignupScreen() {
@@ -25,33 +26,51 @@ export default function SignupScreen() {
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [errors, setErrors] = useState<Partial<SignupFormData>>({});
 
-  // Dummy validation function
+  // Enhanced validation function
   const validateForm = (): boolean => {
+    const newErrors: Partial<SignupFormData> = {};
+
+    // Name validation
     if (!formData.name.trim()) {
-      Alert.alert('Error', 'Please enter your name');
-      return false;
+      newErrors.name = 'Name is required';
+    } else if (formData.name.trim().length < 2) {
+      newErrors.name = 'Name must be at least 2 characters';
     }
+
+    // Email validation
     if (!formData.email.trim()) {
-      Alert.alert('Error', 'Please enter your email');
+      newErrors.email = 'Email is required';
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+      newErrors.email = 'Please enter a valid email address';
+    }
+
+    // Password validation
+    if (!formData.password) {
+      newErrors.password = 'Password is required';
+    } else if (formData.password.length < 6) {
+      newErrors.password = 'Password must be at least 6 characters';
+    } else if (!/(?=.*[a-zA-Z])(?=.*\d)/.test(formData.password)) {
+      newErrors.password = 'Password must contain at least one letter and one number';
+    }
+
+    // Confirm password validation
+    if (!formData.confirmPassword) {
+      newErrors.confirmPassword = 'Please confirm your password';
+    } else if (formData.password !== formData.confirmPassword) {
+      newErrors.confirmPassword = 'Passwords do not match';
+    }
+
+    setErrors(newErrors);
+
+    // If there are errors, show the first one
+    const errorMessages = Object.values(newErrors);
+    if (errorMessages.length > 0) {
+      Alert.alert('Validation Error', errorMessages[0]);
       return false;
     }
-    if (!formData.email.includes('@')) {
-      Alert.alert('Error', 'Please enter a valid email address');
-      return false;
-    }
-    if (!formData.password.trim()) {
-      Alert.alert('Error', 'Please enter your password');
-      return false;
-    }
-    if (formData.password.length < 6) {
-      Alert.alert('Error', 'Password must be at least 6 characters');
-      return false;
-    }
-    if (formData.password !== formData.confirmPassword) {
-      Alert.alert('Error', 'Passwords do not match');
-      return false;
-    }
+
     return true;
   };
 
@@ -59,26 +78,83 @@ export default function SignupScreen() {
     if (!validateForm()) return;
 
     setIsLoading(true);
+    setErrors({});
     
-    // Simulate API call
-    setTimeout(() => {
-      setIsLoading(false);
-      Alert.alert(
-        'Success',
-        'Account created successfully! Please sign in.',
-        [
-          {
-            text: 'OK',
-            onPress: () => router.replace('/Login'),
-          },
-        ]
+    try {
+      const result = await registerUser(
+        formData.name.trim(), 
+        formData.email.trim().toLowerCase(), 
+        formData.password
       );
-    }, 1500);
+      
+      if (result.success) {
+        Alert.alert(
+          'Account Created Successfully! 🎉',
+          'Welcome to Expense Tracker! Your account has been created and default expense categories have been set up for you.',
+          [
+            {
+              text: 'Sign In Now',
+              onPress: () => {
+                // Pre-fill the email on login screen if possible
+                router.replace({
+                  pathname: '/Login',
+                  params: { email: formData.email.trim().toLowerCase() }
+                });
+              },
+            },
+          ]
+        );
+      } else {
+        Alert.alert('Registration Failed', result.error || 'Failed to create account. Please try again.');
+      }
+    } catch (error) {
+      console.error('Signup error:', error);
+      Alert.alert('Error', 'Registration failed. Please check your connection and try again.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleLoginPress = () => {
     router.back();
   };
+
+  // Real-time validation feedback
+  const getInputStyle = (field: keyof SignupFormData) => {
+    return [
+      styles.input,
+      errors[field] ? styles.inputError : null
+    ];
+  };
+
+  const getPasswordContainerStyle = (field: keyof SignupFormData) => {
+    return [
+      styles.passwordContainer,
+      errors[field] ? styles.inputError : null
+    ];
+  };
+
+  // Password strength indicator
+  const getPasswordStrength = (password: string) => {
+    if (!password) return { strength: 0, text: '', color: '#ccc' };
+    
+    let strength = 0;
+    const checks = {
+      length: password.length >= 6,
+      letter: /[a-zA-Z]/.test(password),
+      number: /\d/.test(password),
+      special: /[!@#$%^&*(),.?":{}|<>]/.test(password),
+    };
+    
+    strength = Object.values(checks).filter(Boolean).length;
+    
+    if (strength <= 1) return { strength, text: 'Weak', color: '#F44336' };
+    if (strength <= 2) return { strength, text: 'Fair', color: '#FF9800' };
+    if (strength <= 3) return { strength, text: 'Good', color: '#2196F3' };
+    return { strength, text: 'Strong', color: '#4CAF50' };
+  };
+
+  const passwordStrength = getPasswordStrength(formData.password);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -94,50 +170,64 @@ export default function SignupScreen() {
                 <Ionicons name="arrow-back" size={24} color="#007AFF" />
               </TouchableOpacity>
               <Text style={styles.title}>Create Account</Text>
-              <Text style={styles.subtitle}>Sign up to get started</Text>
+              <Text style={styles.subtitle}>Join Expense Tracker to manage your finances</Text>
             </View>
 
             {/* Form */}
             <View style={styles.form}>
               {/* Name Input */}
               <View style={styles.inputContainer}>
-                <Text style={styles.label}>Full Name</Text>
+                <Text style={styles.label}>Full Name *</Text>
                 <TextInput
-                  style={styles.input}
+                  style={getInputStyle('name')}
                   placeholder="Enter your full name"
                   value={formData.name}
-                  onChangeText={(text) => setFormData({ ...formData, name: text })}
+                  onChangeText={(text) => {
+                    setFormData({ ...formData, name: text });
+                    if (errors.name) setErrors({ ...errors, name: undefined });
+                  }}
                   autoCapitalize="words"
                   autoCorrect={false}
+                  returnKeyType="next"
                 />
+                {errors.name && <Text style={styles.errorText}>{errors.name}</Text>}
               </View>
 
               {/* Email Input */}
               <View style={styles.inputContainer}>
-                <Text style={styles.label}>Email</Text>
+                <Text style={styles.label}>Email Address *</Text>
                 <TextInput
-                  style={styles.input}
-                  placeholder="Enter your email"
+                  style={getInputStyle('email')}
+                  placeholder="Enter your email address"
                   value={formData.email}
-                  onChangeText={(text) => setFormData({ ...formData, email: text })}
+                  onChangeText={(text) => {
+                    setFormData({ ...formData, email: text });
+                    if (errors.email) setErrors({ ...errors, email: undefined });
+                  }}
                   keyboardType="email-address"
                   autoCapitalize="none"
                   autoCorrect={false}
+                  returnKeyType="next"
                 />
+                {errors.email && <Text style={styles.errorText}>{errors.email}</Text>}
               </View>
 
               {/* Password Input */}
               <View style={styles.inputContainer}>
-                <Text style={styles.label}>Password</Text>
-                <View style={styles.passwordContainer}>
+                <Text style={styles.label}>Password *</Text>
+                <View style={getPasswordContainerStyle('password')}>
                   <TextInput
                     style={styles.passwordInput}
-                    placeholder="Enter your password"
+                    placeholder="Create a secure password"
                     value={formData.password}
-                    onChangeText={(text) => setFormData({ ...formData, password: text })}
+                    onChangeText={(text) => {
+                      setFormData({ ...formData, password: text });
+                      if (errors.password) setErrors({ ...errors, password: undefined });
+                    }}
                     secureTextEntry={!showPassword}
                     autoCapitalize="none"
                     autoCorrect={false}
+                    returnKeyType="next"
                   />
                   <TouchableOpacity
                     style={styles.eyeIcon}
@@ -150,20 +240,47 @@ export default function SignupScreen() {
                     />
                   </TouchableOpacity>
                 </View>
+                {formData.password && (
+                  <View style={styles.passwordStrength}>
+                    <View style={styles.strengthBar}>
+                      <View 
+                        style={[
+                          styles.strengthFill, 
+                          { 
+                            width: `${(passwordStrength.strength / 4) * 100}%`,
+                            backgroundColor: passwordStrength.color 
+                          }
+                        ]} 
+                      />
+                    </View>
+                    <Text style={[styles.strengthText, { color: passwordStrength.color }]}>
+                      {passwordStrength.text}
+                    </Text>
+                  </View>
+                )}
+                {errors.password && <Text style={styles.errorText}>{errors.password}</Text>}
+                <Text style={styles.hintText}>
+                  Use at least 6 characters with letters and numbers
+                </Text>
               </View>
 
               {/* Confirm Password Input */}
               <View style={styles.inputContainer}>
-                <Text style={styles.label}>Confirm Password</Text>
-                <View style={styles.passwordContainer}>
+                <Text style={styles.label}>Confirm Password *</Text>
+                <View style={getPasswordContainerStyle('confirmPassword')}>
                   <TextInput
                     style={styles.passwordInput}
                     placeholder="Confirm your password"
                     value={formData.confirmPassword}
-                    onChangeText={(text) => setFormData({ ...formData, confirmPassword: text })}
+                    onChangeText={(text) => {
+                      setFormData({ ...formData, confirmPassword: text });
+                      if (errors.confirmPassword) setErrors({ ...errors, confirmPassword: undefined });
+                    }}
                     secureTextEntry={!showConfirmPassword}
                     autoCapitalize="none"
                     autoCorrect={false}
+                    returnKeyType="done"
+                    onSubmitEditing={handleSignup}
                   />
                   <TouchableOpacity
                     style={styles.eyeIcon}
@@ -176,6 +293,15 @@ export default function SignupScreen() {
                     />
                   </TouchableOpacity>
                 </View>
+                {errors.confirmPassword && <Text style={styles.errorText}>{errors.confirmPassword}</Text>}
+              </View>
+
+              {/* Terms and Privacy Notice */}
+              <View style={styles.termsContainer}>
+                <Text style={styles.termsText}>
+                  By creating an account, you agree to our Terms of Service and Privacy Policy. 
+                  Your data is stored locally on your device.
+                </Text>
               </View>
 
               {/* Signup Button */}
@@ -184,9 +310,13 @@ export default function SignupScreen() {
                 onPress={handleSignup}
                 disabled={isLoading}
               >
-                <Text style={styles.signupButtonText}>
-                  {isLoading ? 'Creating Account...' : 'Create Account'}
-                </Text>
+                {isLoading ? (
+                  <View style={styles.loadingContainer}>
+                    <Text style={styles.signupButtonText}>Creating Account...</Text>
+                  </View>
+                ) : (
+                  <Text style={styles.signupButtonText}>Create Account</Text>
+                )}
               </TouchableOpacity>
 
               {/* Login Link */}
@@ -226,6 +356,7 @@ const styles = StyleSheet.create({
   backButton: {
     alignSelf: 'flex-start',
     marginBottom: 20,
+    padding: 4,
   },
   title: {
     fontSize: 32,
@@ -236,6 +367,7 @@ const styles = StyleSheet.create({
   subtitle: {
     fontSize: 16,
     color: '#666',
+    lineHeight: 22,
   },
   form: {
     width: '100%',
@@ -260,6 +392,10 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#1a1a1a',
   },
+  inputError: {
+    borderColor: '#F44336',
+    borderWidth: 2,
+  },
   passwordContainer: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -278,15 +414,67 @@ const styles = StyleSheet.create({
   eyeIcon: {
     padding: 4,
   },
+  errorText: {
+    fontSize: 14,
+    color: '#F44336',
+    marginTop: 4,
+  },
+  hintText: {
+    fontSize: 12,
+    color: '#999',
+    marginTop: 4,
+  },
+  passwordStrength: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  strengthBar: {
+    flex: 1,
+    height: 4,
+    backgroundColor: '#e1e5e9',
+    borderRadius: 2,
+    marginRight: 8,
+  },
+  strengthFill: {
+    height: '100%',
+    borderRadius: 2,
+  },
+  strengthText: {
+    fontSize: 12,
+    fontWeight: '500',
+    minWidth: 45,
+  },
+  termsContainer: {
+    marginBottom: 20,
+    paddingHorizontal: 4,
+  },
+  termsText: {
+    fontSize: 12,
+    color: '#666',
+    lineHeight: 18,
+    textAlign: 'center',
+  },
   signupButton: {
     backgroundColor: '#007AFF',
     borderRadius: 12,
     paddingVertical: 16,
     alignItems: 'center',
     marginTop: 20,
+    shadowColor: '#007AFF',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
   },
   disabledButton: {
     backgroundColor: '#ccc',
+    shadowOpacity: 0,
+    elevation: 0,
+  },
+  loadingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   signupButtonText: {
     color: '#fff',

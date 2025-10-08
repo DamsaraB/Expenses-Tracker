@@ -1,19 +1,83 @@
 import { Ionicons } from '@expo/vector-icons';
-import React from 'react';
+import { router } from 'expo-router';
+import React, { useEffect, useState } from 'react';
 import {
-    Alert,
-    SafeAreaView,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  Alert,
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
-import { mockSummaryData } from '../../data/mockData';
+import { useUser } from '../../context/UserContext';
+import { getBudgetSummary } from '../../services/budgetService';
+import { getUserExpenses } from '../../services/expenseService';
+import { getSavingsSummary } from '../../services/savingsService';
 
 export default function HomeScreen() {
+  const { user } = useUser();
+  const [dashboardData, setDashboardData] = useState({
+    totalExpenses: 0,
+    recentExpenses: [],
+    budgetSummary: { totalBudget: 0, totalSpent: 0, remaining: 0 },
+    savingsSummary: { totalTarget: 0, totalSaved: 0, progress: 0 }
+  });
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (user) {
+      loadDashboardData();
+    }
+  }, [user]);
+
+  const loadDashboardData = async () => {
+    if (!user) return;
+    
+    try {
+      setLoading(true);
+      const [expenses, budgetSummary, savingsSummary] = await Promise.all([
+        getUserExpenses(user.id, 5), // Get last 5 expenses
+        getBudgetSummary(user.id),
+        getSavingsSummary(user.id)
+      ]);
+
+      const currentMonth = new Date().toISOString().substr(0, 7);
+      const monthlyExpenses = expenses.filter(expense => 
+        expense.date.startsWith(currentMonth)
+      );
+      const totalExpenses = monthlyExpenses.reduce((sum, expense) => sum + expense.amount, 0);
+
+      setDashboardData({
+        totalExpenses,
+        recentExpenses: expenses,
+        budgetSummary,
+        savingsSummary
+      });
+    } catch (error) {
+      console.error('Error loading dashboard data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleQuickAction = (action: string) => {
-    Alert.alert('Quick Action', `${action} feature coming soon!`);
+    switch (action) {
+      case 'Add Expense':
+        router.push('/expenses');
+        break;
+      case 'View Budget':
+        router.push('/budget');
+        break;
+      case 'Add Savings Goal':
+        router.push('/savings');
+        break;
+      case 'View Reports':
+        router.push('/reports');
+        break;
+      default:
+        Alert.alert('Quick Action', `${action} feature coming soon!`);
+    }
   };
 
   const formatCurrency = (amount: number) => {
@@ -24,16 +88,30 @@ export default function HomeScreen() {
   };
 
   const getBudgetProgress = () => {
-    const percentage = (mockSummaryData.budgetSpent / mockSummaryData.monthlyBudget) * 100;
-    return Math.min(percentage, 100);
+    const { totalBudget, totalSpent } = dashboardData.budgetSummary;
+    if (totalBudget === 0) return 0;
+    return Math.min((totalSpent / totalBudget) * 100, 100);
   };
+
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.loadingContainer}>
+          <Text>Loading dashboard...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
         {/* Header */}
         <View style={styles.header}>
-          <Text style={styles.title}>Personal Finance</Text>
+          <View>
+            <Text style={styles.greeting}>Hello, {user?.name || 'User'}!</Text>
+            <Text style={styles.title}>Personal Finance</Text>
+          </View>
           <TouchableOpacity style={styles.notificationButton}>
             <Ionicons name="notifications-outline" size={24} color="#666" />
           </TouchableOpacity>
@@ -43,55 +121,65 @@ export default function HomeScreen() {
         <View style={styles.summarySection}>
           <Text style={styles.sectionTitle}>This Month</Text>
           
-          {/* Income Card */}
-          <View style={styles.summaryCard}>
-            <View style={styles.summaryHeader}>
-              <Text style={styles.summaryLabel}>Income</Text>
-              <Ionicons name="trending-up" size={20} color="#4CAF50" />
-            </View>
-            <Text style={styles.summaryAmount}>{formatCurrency(mockSummaryData.totalIncome)}</Text>
-          </View>
-
           {/* Expenses Card */}
           <View style={styles.summaryCard}>
             <View style={styles.summaryHeader}>
-              <Text style={styles.summaryLabel}>Expenses</Text>
+              <Text style={styles.summaryLabel}>Total Expenses</Text>
               <Ionicons name="trending-down" size={20} color="#F44336" />
             </View>
             <Text style={[styles.summaryAmount, { color: '#F44336' }]}>
-              {formatCurrency(mockSummaryData.totalExpenses)}
+              {formatCurrency(dashboardData.totalExpenses)}
             </Text>
+          </View>
+
+          {/* Budget Card */}
+          <View style={styles.summaryCard}>
+            <View style={styles.summaryHeader}>
+              <Text style={styles.summaryLabel}>Budget Status</Text>
+              <Ionicons name="pie-chart" size={20} color="#4CAF50" />
+            </View>
+            <Text style={styles.summaryAmount}>
+              {formatCurrency(dashboardData.budgetSummary.remaining)}
+            </Text>
+            <Text style={styles.summarySubtext}>Remaining</Text>
           </View>
 
           {/* Savings Card */}
           <View style={styles.summaryCard}>
             <View style={styles.summaryHeader}>
-              <Text style={styles.summaryLabel}>Total Savings</Text>
+              <Text style={styles.summaryLabel}>Savings Progress</Text>
               <Ionicons name="wallet" size={20} color="#2196F3" />
             </View>
-            <Text style={styles.summaryAmount}>{formatCurrency(mockSummaryData.totalSavings)}</Text>
+            <Text style={styles.summaryAmount}>
+              {formatCurrency(dashboardData.savingsSummary.totalSaved)}
+            </Text>
+            <Text style={styles.summarySubtext}>
+              {dashboardData.savingsSummary.progress.toFixed(1)}% of goals
+            </Text>
           </View>
 
           {/* Budget Progress Card */}
-          <View style={styles.budgetCard}>
-            <View style={styles.budgetHeader}>
-              <Text style={styles.budgetLabel}>Monthly Budget</Text>
-              <Text style={styles.budgetAmount}>
-                {formatCurrency(mockSummaryData.budgetSpent)} / {formatCurrency(mockSummaryData.monthlyBudget)}
+          {dashboardData.budgetSummary.totalBudget > 0 && (
+            <View style={styles.budgetCard}>
+              <View style={styles.budgetHeader}>
+                <Text style={styles.budgetLabel}>Monthly Budget</Text>
+                <Text style={styles.budgetAmount}>
+                  {formatCurrency(dashboardData.budgetSummary.totalSpent)} / {formatCurrency(dashboardData.budgetSummary.totalBudget)}
+                </Text>
+              </View>
+              <View style={styles.progressBar}>
+                <View 
+                  style={[
+                    styles.progressFill, 
+                    { width: `${getBudgetProgress()}%` }
+                  ]} 
+                />
+              </View>
+              <Text style={styles.budgetRemaining}>
+                {formatCurrency(dashboardData.budgetSummary.remaining)} remaining
               </Text>
             </View>
-            <View style={styles.progressBar}>
-              <View 
-                style={[
-                  styles.progressFill, 
-                  { width: `${getBudgetProgress()}%` }
-                ]} 
-              />
-            </View>
-            <Text style={styles.budgetRemaining}>
-              {formatCurrency(mockSummaryData.remainingBudget)} remaining
-            </Text>
-          </View>
+          )}
         </View>
 
         {/* Quick Actions */}
@@ -136,43 +224,31 @@ export default function HomeScreen() {
         <View style={styles.transactionsSection}>
           <View style={styles.transactionsHeader}>
             <Text style={styles.sectionTitle}>Recent Transactions</Text>
-            <TouchableOpacity>
+            <TouchableOpacity onPress={() => router.push('/expenses')}>
               <Text style={styles.seeAllText}>See All</Text>
             </TouchableOpacity>
           </View>
           
-          <View style={styles.transactionItem}>
-            <View style={styles.transactionIcon}>
-              <Ionicons name="restaurant" size={20} color="#FF6B6B" />
+          {dashboardData.recentExpenses.length > 0 ? (
+            dashboardData.recentExpenses.map((expense) => (
+              <View key={expense.id} style={styles.transactionItem}>
+                <View style={styles.transactionIcon}>
+                  <Text style={styles.transactionEmoji}>{expense.category_icon || '💳'}</Text>
+                </View>
+                <View style={styles.transactionDetails}>
+                  <Text style={styles.transactionTitle}>{expense.title}</Text>
+                  <Text style={styles.transactionCategory}>{expense.category_name}</Text>
+                  <Text style={styles.transactionDate}>{new Date(expense.date).toLocaleDateString()}</Text>
+                </View>
+                <Text style={styles.transactionAmount}>-{formatCurrency(expense.amount)}</Text>
+              </View>
+            ))
+          ) : (
+            <View style={styles.emptyTransactions}>
+              <Text style={styles.emptyText}>No recent transactions</Text>
+              <Text style={styles.emptySubtext}>Add your first expense to see it here</Text>
             </View>
-            <View style={styles.transactionDetails}>
-              <Text style={styles.transactionTitle}>Grocery Shopping</Text>
-              <Text style={styles.transactionCategory}>Food & Dining</Text>
-            </View>
-            <Text style={styles.transactionAmount}>-$85.50</Text>
-          </View>
-
-          <View style={styles.transactionItem}>
-            <View style={styles.transactionIcon}>
-              <Ionicons name="car" size={20} color="#4ECDC4" />
-            </View>
-            <View style={styles.transactionDetails}>
-              <Text style={styles.transactionTitle}>Gas Station</Text>
-              <Text style={styles.transactionCategory}>Transportation</Text>
-            </View>
-            <Text style={styles.transactionAmount}>-$45.00</Text>
-          </View>
-
-          <View style={styles.transactionItem}>
-            <View style={styles.transactionIcon}>
-              <Ionicons name="card" size={20} color="#45B7D1" />
-            </View>
-            <View style={styles.transactionDetails}>
-              <Text style={styles.transactionTitle}>Netflix</Text>
-              <Text style={styles.transactionCategory}>Entertainment</Text>
-            </View>
-            <Text style={styles.transactionAmount}>-$15.99</Text>
-          </View>
+          )}
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -184,6 +260,11 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#f8f9fa',
   },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   scrollView: {
     flex: 1,
   },
@@ -193,6 +274,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 20,
     paddingVertical: 16,
+  },
+  greeting: {
+    fontSize: 16,
+    color: '#666',
+    marginBottom: 4,
   },
   title: {
     fontSize: 28,
@@ -238,6 +324,11 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: 'bold',
     color: '#1a1a1a',
+  },
+  summarySubtext: {
+    fontSize: 14,
+    color: '#666',
+    marginTop: 4,
   },
   budgetCard: {
     backgroundColor: '#fff',
@@ -347,6 +438,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginRight: 12,
   },
+  transactionEmoji: {
+    fontSize: 20,
+  },
   transactionDetails: {
     flex: 1,
   },
@@ -359,10 +453,29 @@ const styles = StyleSheet.create({
   transactionCategory: {
     fontSize: 14,
     color: '#666',
+    marginBottom: 2,
+  },
+  transactionDate: {
+    fontSize: 12,
+    color: '#999',
   },
   transactionAmount: {
     fontSize: 16,
     fontWeight: '600',
     color: '#F44336',
+  },
+  emptyTransactions: {
+    alignItems: 'center',
+    paddingVertical: 40,
+  },
+  emptyText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#666',
+    marginBottom: 4,
+  },
+  emptySubtext: {
+    fontSize: 14,
+    color: '#999',
   },
 });

@@ -1,7 +1,9 @@
 import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { router, useLocalSearchParams } from 'expo-router';
 import React, { useState } from 'react';
 import {
+  ActivityIndicator,
   Alert,
   KeyboardAvoidingView,
   Platform,
@@ -12,34 +14,49 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { DebugPanel } from '../components/DebugPanel';
+import { useUser } from '../context/UserContext';
+import { loginUser } from '../services/database';
 import { LoginFormData } from '../types';
 
 export default function LoginScreen() {
+  const params = useLocalSearchParams();
   const [formData, setFormData] = useState<LoginFormData>({
-    email: '',
+    email: (params.email as string) || '', // Pre-fill from signup
     password: '',
   });
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [errors, setErrors] = useState<Partial<LoginFormData>>({});
+  const { setUser } = useUser();
 
-  // Dummy validation function
+  // Enhanced validation with better UX
   const validateForm = (): boolean => {
+    const newErrors: Partial<LoginFormData> = {};
+
+    // Email validation
     if (!formData.email.trim()) {
-      Alert.alert('Error', 'Please enter your email');
-      return false;
+      newErrors.email = 'Email is required';
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email.trim())) {
+      newErrors.email = 'Please enter a valid email address';
     }
+
+    // Password validation
     if (!formData.password.trim()) {
-      Alert.alert('Error', 'Please enter your password');
+      newErrors.password = 'Password is required';
+    } else if (formData.password.length < 6) {
+      newErrors.password = 'Password must be at least 6 characters';
+    }
+
+    setErrors(newErrors);
+
+    // Show first error if any
+    const errorMessages = Object.values(newErrors);
+    if (errorMessages.length > 0) {
+      Alert.alert('Validation Error', errorMessages[0]);
       return false;
     }
-    if (!formData.email.includes('@')) {
-      Alert.alert('Error', 'Please enter a valid email address');
-      return false;
-    }
-    if (formData.password.length < 6) {
-      Alert.alert('Error', 'Password must be at least 6 characters');
-      return false;
-    }
+
     return true;
   };
 
@@ -47,18 +64,73 @@ export default function LoginScreen() {
     if (!validateForm()) return;
 
     setIsLoading(true);
+    setErrors({});
     
-    // Simulate API call
-    setTimeout(() => {
+    try {
+      console.log('Attempting login for:', formData.email.trim());
+      
+      const result = await loginUser(
+        formData.email.trim().toLowerCase(), 
+        formData.password
+      );
+      
+      console.log('Login result:', result);
+      
+      if (result.success && result.user) {
+        // Save user ID to AsyncStorage for persistence
+        await AsyncStorage.setItem('userId', result.user.id.toString());
+        
+        // Update user context
+        setUser(result.user);
+        
+        console.log('Login successful, navigating to tabs...');
+        
+        // Navigate to main app (replace to prevent back navigation to login)
+        router.replace('/(tabs)/');
+        
+        // Optional: Show success message
+        // Alert.alert('Welcome!', `Hello ${result.user.name}, you're successfully logged in!`);
+      } else {
+        const errorMessage = result.error || 'Invalid email or password';
+        console.error('Login failed:', errorMessage);
+        Alert.alert('Login Failed', errorMessage);
+      }
+    } catch (error) {
+      console.error('Login error:', error);
+      Alert.alert('Error', 'Login failed. Please check your connection and try again.');
+    } finally {
       setIsLoading(false);
-      // Navigate to the tabs group on successful login (replace to prevent back)
-      // cast to any because route-group names with parentheses may not be present in generated types
-      router.replace({ pathname: '/(tabs)' } as any);
-    }, 1500);
+    }
   };
 
   const handleSignupPress = () => {
     router.push('/Signup');
+  };
+
+  const handleForgotPassword = () => {
+    Alert.alert(
+      'Reset Password',
+      'Password reset functionality will be available soon. For now, you can create a new account.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Create New Account', onPress: handleSignupPress }
+      ]
+    );
+  };
+
+  // Get input styles with error state
+  const getInputStyle = (field: keyof LoginFormData) => {
+    return [
+      styles.input,
+      errors[field] ? styles.inputError : null
+    ];
+  };
+
+  const getPasswordContainerStyle = () => {
+    return [
+      styles.passwordContainer,
+      errors.password ? styles.inputError : null
+    ];
   };
 
   return (
@@ -68,44 +140,68 @@ export default function LoginScreen() {
         style={styles.keyboardView}
       >
         <View style={styles.content}>
+          {/* Add debug panel in development mode */}
+          {__DEV__ && <DebugPanel />}
+          
           {/* Header */}
           <View style={styles.header}>
+            <View style={styles.logoContainer}>
+              <Ionicons name="wallet" size={48} color="#007AFF" />
+            </View>
             <Text style={styles.title}>Welcome Back</Text>
-            <Text style={styles.subtitle}>Sign in to your account</Text>
+            <Text style={styles.subtitle}>Sign in to manage your expenses</Text>
           </View>
 
           {/* Form */}
           <View style={styles.form}>
             {/* Email Input */}
             <View style={styles.inputContainer}>
-              <Text style={styles.label}>Email</Text>
+              <Text style={styles.label}>Email Address</Text>
               <TextInput
-                style={styles.input}
+                style={getInputStyle('email')}
                 placeholder="Enter your email"
                 value={formData.email}
-                onChangeText={(text) => setFormData({ ...formData, email: text })}
+                onChangeText={(text) => {
+                  setFormData({ ...formData, email: text });
+                  if (errors.email) setErrors({ ...errors, email: undefined });
+                }}
                 keyboardType="email-address"
                 autoCapitalize="none"
                 autoCorrect={false}
+                returnKeyType="next"
+                editable={!isLoading}
               />
+              {errors.email && <Text style={styles.errorText}>{errors.email}</Text>}
             </View>
 
             {/* Password Input */}
             <View style={styles.inputContainer}>
-              <Text style={styles.label}>Password</Text>
-              <View style={styles.passwordContainer}>
+              <View style={styles.labelRow}>
+                <Text style={styles.label}>Password</Text>
+                <TouchableOpacity onPress={handleForgotPassword}>
+                  <Text style={styles.forgotPassword}>Forgot?</Text>
+                </TouchableOpacity>
+              </View>
+              <View style={getPasswordContainerStyle()}>
                 <TextInput
                   style={styles.passwordInput}
                   placeholder="Enter your password"
                   value={formData.password}
-                  onChangeText={(text) => setFormData({ ...formData, password: text })}
+                  onChangeText={(text) => {
+                    setFormData({ ...formData, password: text });
+                    if (errors.password) setErrors({ ...errors, password: undefined });
+                  }}
                   secureTextEntry={!showPassword}
                   autoCapitalize="none"
                   autoCorrect={false}
+                  returnKeyType="done"
+                  onSubmitEditing={handleLogin}
+                  editable={!isLoading}
                 />
                 <TouchableOpacity
                   style={styles.eyeIcon}
                   onPress={() => setShowPassword(!showPassword)}
+                  disabled={isLoading}
                 >
                   <Ionicons
                     name={showPassword ? 'eye-off' : 'eye'}
@@ -114,6 +210,7 @@ export default function LoginScreen() {
                   />
                 </TouchableOpacity>
               </View>
+              {errors.password && <Text style={styles.errorText}>{errors.password}</Text>}
             </View>
 
             {/* Login Button */}
@@ -122,15 +219,36 @@ export default function LoginScreen() {
               onPress={handleLogin}
               disabled={isLoading}
             >
-              <Text style={styles.loginButtonText}>
-                {isLoading ? 'Signing In...' : 'Sign In'}
-              </Text>
+              {isLoading ? (
+                <View style={styles.loadingContainer}>
+                  <ActivityIndicator size="small" color="#fff" style={styles.loadingSpinner} />
+                  <Text style={styles.loginButtonText}>Signing In...</Text>
+                </View>
+              ) : (
+                <Text style={styles.loginButtonText}>Sign In</Text>
+              )}
             </TouchableOpacity>
+
+            {/* Demo Account Button (for testing) */}
+            {__DEV__ && (
+              <TouchableOpacity
+                style={styles.demoButton}
+                onPress={() => {
+                  setFormData({ 
+                    email: 'demo@example.com', 
+                    password: 'demo123' 
+                  });
+                }}
+                disabled={isLoading}
+              >
+                <Text style={styles.demoButtonText}>Use Demo Account</Text>
+              </TouchableOpacity>
+            )}
 
             {/* Signup Link */}
             <View style={styles.signupContainer}>
               <Text style={styles.signupText}>Don't have an account? </Text>
-              <TouchableOpacity onPress={handleSignupPress}>
+              <TouchableOpacity onPress={handleSignupPress} disabled={isLoading}>
                 <Text style={styles.signupLink}>Sign Up</Text>
               </TouchableOpacity>
             </View>
@@ -158,6 +276,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 40,
   },
+  logoContainer: {
+    marginBottom: 20,
+  },
   title: {
     fontSize: 32,
     fontWeight: 'bold',
@@ -167,6 +288,7 @@ const styles = StyleSheet.create({
   subtitle: {
     fontSize: 16,
     color: '#666',
+    textAlign: 'center',
   },
   form: {
     width: '100%',
@@ -174,11 +296,21 @@ const styles = StyleSheet.create({
   inputContainer: {
     marginBottom: 20,
   },
+  labelRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
   label: {
     fontSize: 16,
     fontWeight: '600',
     color: '#1a1a1a',
-    marginBottom: 8,
+  },
+  forgotPassword: {
+    fontSize: 14,
+    color: '#007AFF',
+    fontWeight: '500',
   },
   input: {
     backgroundColor: '#fff',
@@ -189,6 +321,10 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     fontSize: 16,
     color: '#1a1a1a',
+  },
+  inputError: {
+    borderColor: '#F44336',
+    borderWidth: 2,
   },
   passwordContainer: {
     flexDirection: 'row',
@@ -208,20 +344,53 @@ const styles = StyleSheet.create({
   eyeIcon: {
     padding: 4,
   },
+  errorText: {
+    fontSize: 14,
+    color: '#F44336',
+    marginTop: 4,
+  },
   loginButton: {
     backgroundColor: '#007AFF',
     borderRadius: 12,
     paddingVertical: 16,
     alignItems: 'center',
     marginTop: 20,
+    shadowColor: '#007AFF',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
   },
   disabledButton: {
     backgroundColor: '#ccc',
+    shadowOpacity: 0,
+    elevation: 0,
+  },
+  loadingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  loadingSpinner: {
+    marginRight: 8,
   },
   loginButtonText: {
     color: '#fff',
     fontSize: 18,
     fontWeight: '600',
+  },
+  demoButton: {
+    backgroundColor: 'transparent',
+    borderWidth: 1,
+    borderColor: '#007AFF',
+    borderRadius: 12,
+    paddingVertical: 12,
+    alignItems: 'center',
+    marginTop: 12,
+  },
+  demoButtonText: {
+    color: '#007AFF',
+    fontSize: 16,
+    fontWeight: '500',
   },
   signupContainer: {
     flexDirection: 'row',

@@ -1,30 +1,72 @@
 import { Ionicons } from '@expo/vector-icons';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
-    Alert,
-    FlatList,
-    Modal,
-    SafeAreaView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  Alert,
+  FlatList,
+  Modal,
+  SafeAreaView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
-import { expenseCategories, mockExpenses } from '../../data/mockData';
-import { Expense } from '../../types';
+import { useUser } from '../../context/UserContext';
+import {
+  addExpense,
+  deleteExpense,
+  Expense,
+  ExpenseCategory,
+  getUserCategories,
+  getUserExpenses,
+  updateExpense
+} from '../../services/expenseService';
 
 export default function ExpensesScreen() {
-  const [expenses, setExpenses] = useState<Expense[]>(mockExpenses);
+  const { user } = useUser();
+  const [expenses, setExpenses] = useState<Expense[]>([]);
+  const [categories, setCategories] = useState<ExpenseCategory[]>([]);
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [selectedExpense, setSelectedExpense] = useState<Expense | null>(null);
   const [newExpense, setNewExpense] = useState({
     title: '',
     amount: '',
-    category: 'Food & Dining',
+    categoryId: 0,
     description: '',
   });
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (user) {
+      loadData();
+    }
+  }, [user]);
+
+  const loadData = async () => {
+    if (!user) return;
+    
+    try {
+      setLoading(true);
+      const [expensesData, categoriesData] = await Promise.all([
+        getUserExpenses(user.id),
+        getUserCategories(user.id)
+      ]);
+      
+      setExpenses(expensesData);
+      setCategories(categoriesData);
+      
+      // Set default category if available
+      if (categoriesData.length > 0 && newExpense.categoryId === 0) {
+        setNewExpense(prev => ({ ...prev, categoryId: categoriesData[0].id }));
+      }
+    } catch (error) {
+      console.error('Error loading data:', error);
+      Alert.alert('Error', 'Failed to load expenses');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-US', {
@@ -33,56 +75,62 @@ export default function ExpensesScreen() {
     }).format(amount);
   };
 
-  const getCategoryIcon = (category: string) => {
-    const categoryData = expenseCategories.find(cat => cat.name === category);
-    return categoryData?.icon || '💳';
-  };
-
-  const getCategoryColor = (category: string) => {
-    const categoryData = expenseCategories.find(cat => cat.name === category);
-    return categoryData?.color || '#666';
-  };
-
-  const handleAddExpense = () => {
-    if (!newExpense.title || !newExpense.amount) {
+  const handleAddExpense = async () => {
+    if (!newExpense.title || !newExpense.amount || !user) {
       Alert.alert('Error', 'Please fill in all required fields');
       return;
     }
 
-    const expense: Expense = {
-      id: Date.now().toString(),
-      title: newExpense.title,
-      amount: parseFloat(newExpense.amount),
-      category: newExpense.category,
-      description: newExpense.description,
-      date: new Date().toISOString().split('T')[0],
-    };
+    try {
+      const result = await addExpense(
+        user.id,
+        newExpense.title,
+        parseFloat(newExpense.amount),
+        newExpense.categoryId,
+        newExpense.description
+      );
 
-    setExpenses([expense, ...expenses]);
-    setNewExpense({ title: '', amount: '', category: 'Food & Dining', description: '' });
-    setShowAddModal(false);
-    Alert.alert('Success', 'Expense added successfully!');
+      if (result.success) {
+        await loadData(); // Refresh the list
+        setNewExpense({ title: '', amount: '', categoryId: categories[0]?.id || 0, description: '' });
+        setShowAddModal(false);
+        Alert.alert('Success', 'Expense added successfully!');
+      } else {
+        Alert.alert('Error', result.error || 'Failed to add expense');
+      }
+    } catch (error) {
+      Alert.alert('Error', 'Failed to add expense');
+    }
   };
 
-  const handleEditExpense = () => {
-    if (!selectedExpense || !newExpense.title || !newExpense.amount) {
+  const handleEditExpense = async () => {
+    if (!selectedExpense || !newExpense.title || !newExpense.amount || !user) {
       Alert.alert('Error', 'Please fill in all required fields');
       return;
     }
 
-    const updatedExpense: Expense = {
-      ...selectedExpense,
-      title: newExpense.title,
-      amount: parseFloat(newExpense.amount),
-      category: newExpense.category,
-      description: newExpense.description,
-    };
+    try {
+      const result = await updateExpense(
+        selectedExpense.id,
+        user.id,
+        newExpense.title,
+        parseFloat(newExpense.amount),
+        newExpense.categoryId,
+        newExpense.description
+      );
 
-    setExpenses(expenses.map(exp => exp.id === selectedExpense.id ? updatedExpense : exp));
-    setShowEditModal(false);
-    setSelectedExpense(null);
-    setNewExpense({ title: '', amount: '', category: 'Food & Dining', description: '' });
-    Alert.alert('Success', 'Expense updated successfully!');
+      if (result.success) {
+        await loadData(); // Refresh the list
+        setShowEditModal(false);
+        setSelectedExpense(null);
+        setNewExpense({ title: '', amount: '', categoryId: categories[0]?.id || 0, description: '' });
+        Alert.alert('Success', 'Expense updated successfully!');
+      } else {
+        Alert.alert('Error', result.error || 'Failed to update expense');
+      }
+    } catch (error) {
+      Alert.alert('Error', 'Failed to update expense');
+    }
   };
 
   const handleDeleteExpense = (expense: Expense) => {
@@ -94,9 +142,20 @@ export default function ExpensesScreen() {
         {
           text: 'Delete',
           style: 'destructive',
-          onPress: () => {
-            setExpenses(expenses.filter(exp => exp.id !== expense.id));
-            Alert.alert('Success', 'Expense deleted successfully!');
+          onPress: async () => {
+            if (!user) return;
+            
+            try {
+              const result = await deleteExpense(expense.id, user.id);
+              if (result.success) {
+                await loadData(); // Refresh the list
+                Alert.alert('Success', 'Expense deleted successfully!');
+              } else {
+                Alert.alert('Error', result.error || 'Failed to delete expense');
+              }
+            } catch (error) {
+              Alert.alert('Error', 'Failed to delete expense');
+            }
           },
         },
       ]
@@ -108,21 +167,28 @@ export default function ExpensesScreen() {
     setNewExpense({
       title: expense.title,
       amount: expense.amount.toString(),
-      category: expense.category,
+      categoryId: expense.category_id,
       description: expense.description || '',
     });
     setShowEditModal(true);
   };
 
+  const getCategoryById = (categoryId: number) => {
+    return categories.find(cat => cat.id === categoryId);
+  };
+
   const renderExpenseItem = ({ item }: { item: Expense }) => (
     <View style={styles.expenseItem}>
-      <View style={styles.expenseIcon}>
-        <Text style={styles.expenseEmoji}>{getCategoryIcon(item.category)}</Text>
+      <View style={[styles.expenseIcon, { backgroundColor: item.category_color + '20' }]}>
+        <Text style={styles.expenseEmoji}>{item.category_icon || '💳'}</Text>
       </View>
       <View style={styles.expenseDetails}>
         <Text style={styles.expenseTitle}>{item.title}</Text>
-        <Text style={styles.expenseCategory}>{item.category}</Text>
-        <Text style={styles.expenseDate}>{item.date}</Text>
+        <Text style={styles.expenseCategory}>{item.category_name}</Text>
+        <Text style={styles.expenseDate}>{new Date(item.date).toLocaleDateString()}</Text>
+        {item.description && (
+          <Text style={styles.expenseDescription} numberOfLines={1}>{item.description}</Text>
+        )}
       </View>
       <View style={styles.expenseAmount}>
         <Text style={styles.expenseAmountText}>-{formatCurrency(item.amount)}</Text>
@@ -156,7 +222,7 @@ export default function ExpensesScreen() {
             setShowAddModal(false);
             setShowEditModal(false);
             setSelectedExpense(null);
-            setNewExpense({ title: '', amount: '', category: 'Food & Dining', description: '' });
+            setNewExpense({ title: '', amount: '', categoryId: categories[0]?.id || 0, description: '' });
           }}>
             <Text style={styles.cancelButton}>Cancel</Text>
           </TouchableOpacity>
@@ -193,19 +259,20 @@ export default function ExpensesScreen() {
           <View style={styles.inputContainer}>
             <Text style={styles.inputLabel}>Category</Text>
             <View style={styles.categoryGrid}>
-              {expenseCategories.map((category) => (
+              {categories.map((category) => (
                 <TouchableOpacity
                   key={category.id}
                   style={[
                     styles.categoryItem,
-                    newExpense.category === category.name && styles.selectedCategory
+                    newExpense.categoryId === category.id && styles.selectedCategory,
+                    { borderColor: category.color }
                   ]}
-                  onPress={() => setNewExpense({ ...newExpense, category: category.name })}
+                  onPress={() => setNewExpense({ ...newExpense, categoryId: category.id })}
                 >
                   <Text style={styles.categoryEmoji}>{category.icon}</Text>
                   <Text style={[
                     styles.categoryName,
-                    newExpense.category === category.name && styles.selectedCategoryText
+                    newExpense.categoryId === category.id && styles.selectedCategoryText
                   ]}>
                     {category.name}
                   </Text>
@@ -230,6 +297,18 @@ export default function ExpensesScreen() {
     </Modal>
   );
 
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.loadingContainer}>
+          <Text>Loading expenses...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  const totalExpenses = expenses.reduce((sum, exp) => sum + exp.amount, 0);
+
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
@@ -243,16 +322,16 @@ export default function ExpensesScreen() {
       </View>
 
       <View style={styles.summaryCard}>
-        <Text style={styles.summaryLabel}>Total Expenses This Month</Text>
+        <Text style={styles.summaryLabel}>Total Expenses</Text>
         <Text style={styles.summaryAmount}>
-          {formatCurrency(expenses.reduce((sum, exp) => sum + exp.amount, 0))}
+          {formatCurrency(totalExpenses)}
         </Text>
       </View>
 
       <FlatList
         data={expenses}
         renderItem={renderExpenseItem}
-        keyExtractor={(item) => item.id}
+        keyExtractor={(item) => item.id.toString()}
         style={styles.expenseList}
         showsVerticalScrollIndicator={false}
         ListEmptyComponent={
@@ -269,7 +348,18 @@ export default function ExpensesScreen() {
   );
 }
 
+// Add the new styles
 const styles = StyleSheet.create({
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  expenseDescription: {
+    fontSize: 12,
+    color: '#999',
+    marginTop: 2,
+  },
   container: {
     flex: 1,
     backgroundColor: '#f8f9fa',
@@ -338,7 +428,6 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: '#f8f9fa',
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 12,
@@ -463,11 +552,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     width: '48%',
     marginBottom: 8,
-    borderWidth: 1,
+    borderWidth: 2,
     borderColor: '#e1e5e9',
   },
   selectedCategory: {
-    borderColor: '#007AFF',
     backgroundColor: '#f0f8ff',
   },
   categoryEmoji: {
