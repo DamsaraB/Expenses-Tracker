@@ -2,15 +2,15 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import React, { useState } from 'react';
 import {
-    Alert,
-    KeyboardAvoidingView,
-    Platform,
-    SafeAreaView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+  SafeAreaView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import { LoginFormData } from '../types';
 
@@ -51,8 +51,9 @@ export default function LoginScreen() {
     // Simulate API call
     setTimeout(() => {
       setIsLoading(false);
-      // Navigate to main app on successful login
-      router.replace('/(tabs)');
+      // Navigate to the tabs group on successful login (replace to prevent back)
+      // cast to any because route-group names with parentheses may not be present in generated types
+      router.replace({ pathname: '/(tabs)' } as any);
     }, 1500);
   };
 
