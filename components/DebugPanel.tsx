@@ -20,7 +20,11 @@ export const DebugPanel = () => {
       const result = await registerUser('Test User', 'test@example.com', 'test123');
       setDebugInfo(`Test user creation result:\n${JSON.stringify(result, null, 2)}`);
     } catch (error) {
-      setDebugInfo(`Error creating test user:\n${error.message}`);
+      if (error instanceof Error) {
+        setDebugInfo(`Error creating test user:\n${error.message}`);
+      } else {
+        setDebugInfo(`Error creating test user:\n${String(error)}`);
+      }
     }
   };
 

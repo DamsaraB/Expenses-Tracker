@@ -315,7 +315,8 @@ export const loginUser = async (email: string, password: string) => {
     }
   } catch (error) {
     console.error('Login error details:', error);
-    return { success: false, error: `Login failed: ${error.message || 'Unknown error'}` };
+    const message = error instanceof Error ? error.message : String(error);
+    return { success: false, error: `Login failed: ${message || 'Unknown error'}` };
   }
 };
 
