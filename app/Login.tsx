@@ -14,7 +14,6 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { DebugPanel } from '../components/DebugPanel';
 import { useUser } from '../context/UserContext';
 import { loginUser } from '../services/database';
 import { LoginFormData } from '../types';
@@ -140,8 +139,6 @@ export default function LoginScreen() {
         style={styles.keyboardView}
       >
         <View style={styles.content}>
-          {/* Add debug panel in development mode */}
-          {__DEV__ && <DebugPanel />}
           
           {/* Header */}
           <View style={styles.header}>

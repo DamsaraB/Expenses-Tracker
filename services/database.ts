@@ -43,7 +43,7 @@ export const initDatabase = () => {
         password TEXT NOT NULL,
         profile_image TEXT,
         monthly_income REAL DEFAULT 0,
-        currency TEXT DEFAULT 'USD',
+        currency TEXT DEFAULT 'INR',
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
       );

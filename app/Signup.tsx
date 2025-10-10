@@ -76,7 +76,6 @@ export default function SignupScreen() {
 
   const handleSignup = async () => {
     if (!validateForm()) return;
-
     setIsLoading(true);
     setErrors({});
     
@@ -89,7 +88,7 @@ export default function SignupScreen() {
       
       if (result.success) {
         Alert.alert(
-          'Account Created Successfully! 🎉',
+          'Account Created Successfully!',
           'Welcome to Expense Tracker! Your account has been created and default expense categories have been set up for you.',
           [
             {

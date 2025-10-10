@@ -1,29 +1,32 @@
 import { Ionicons } from '@expo/vector-icons';
 import React, { useEffect, useState } from 'react';
 import {
-  Alert,
-  FlatList,
-  Modal,
-  SafeAreaView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
+    Alert,
+    FlatList,
+    Modal,
+    SafeAreaView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from 'react-native';
+import { Colors } from '../../constants/theme';
+import { useTheme } from '../../context/ThemeContext';
 import { useUser } from '../../context/UserContext';
 import {
-  addExpense,
-  deleteExpense,
-  Expense,
-  ExpenseCategory,
-  getUserCategories,
-  getUserExpenses,
-  updateExpense
+    addExpense,
+    deleteExpense,
+    Expense,
+    ExpenseCategory,
+    getUserCategories,
+    getUserExpenses,
+    updateExpense
 } from '../../services/expenseService';
 
 export default function ExpensesScreen() {
   const { user } = useUser();
+  const { isDarkMode } = useTheme();
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [categories, setCategories] = useState<ExpenseCategory[]>([]);
   const [showAddModal, setShowAddModal] = useState(false);
@@ -69,10 +72,15 @@ export default function ExpensesScreen() {
   };
 
   const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-    }).format(amount);
+    try {
+      return new Intl.NumberFormat('en-IN', {
+        style: 'currency',
+        currency: 'INR',
+        maximumFractionDigits: 2,
+      }).format(amount);
+    } catch {
+      return `Rs. ${Number(amount || 0).toLocaleString('en-IN', { maximumFractionDigits: 2, minimumFractionDigits: 2 })}`;
+    }
   };
 
   const handleAddExpense = async () => {
@@ -310,7 +318,7 @@ export default function ExpensesScreen() {
   const totalExpenses = expenses.reduce((sum, exp) => sum + exp.amount, 0);
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, { backgroundColor: Colors[isDarkMode ? 'dark' : 'light'].background }]}>
       <View style={styles.header}>
         <Text style={styles.title}>Expenses</Text>
         <TouchableOpacity

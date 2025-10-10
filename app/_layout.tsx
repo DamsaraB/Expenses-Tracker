@@ -1,10 +1,10 @@
-import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
+import { DarkTheme, DefaultTheme, ThemeProvider as NavigationThemeProvider } from '@react-navigation/native';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import React, { useEffect } from 'react';
 import 'react-native-reanimated';
 
-import { useColorScheme } from '@/hooks/use-color-scheme';
+import { ThemeProvider, useTheme } from '../context/ThemeContext';
 import { UserProvider } from '../context/UserContext';
 import { initDatabase } from '../services/database';
 
@@ -12,8 +12,8 @@ export const unstable_settings = {
   initialRouteName: 'Login',
 };
 
-export default function RootLayout() {
-  const colorScheme = useColorScheme();
+function RootLayoutContent() {
+  const { isDarkMode } = useTheme();
 
   useEffect(() => {
     initDatabase();
@@ -21,14 +21,25 @@ export default function RootLayout() {
 
   return (
     <UserProvider>
-      <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+      <NavigationThemeProvider value={isDarkMode ? DarkTheme : DefaultTheme}>
         <Stack>
           <Stack.Screen name="Login" options={{ headerShown: false }} />
           <Stack.Screen name="Signup" options={{ headerShown: false }} />
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+          <Stack.Screen name="profile/edit" options={{ headerShown: false }} />
+          <Stack.Screen name="profile/privacy" options={{ headerShown: false }} />
+          <Stack.Screen name="profile/contact" options={{ headerShown: false }} />
         </Stack>
-        <StatusBar style="auto" />
-      </ThemeProvider>
+        <StatusBar style={isDarkMode ? "light" : "dark"} />
+      </NavigationThemeProvider>
     </UserProvider>
+  );
+}
+
+export default function RootLayout() {
+  return (
+    <ThemeProvider>
+      <RootLayoutContent />
+    </ThemeProvider>
   );
 }
