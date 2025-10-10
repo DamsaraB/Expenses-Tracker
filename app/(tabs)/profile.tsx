@@ -2,23 +2,24 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import {
-    Alert,
-    Modal,
-    SafeAreaView,
-    ScrollView,
-    StyleSheet,
-    Switch,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  Alert,
+  Modal,
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
+  Switch,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import { Colors } from '../../constants/theme';
 import { useTheme } from '../../context/ThemeContext';
 import { useUser } from '../../context/UserContext';
+import { updateUserMonthlyIncome } from '../../services/database';
 
 export default function ProfileScreen() {
-  const { user, logout } = useUser();
+  const { user, logout, setUser } = useUser();
   const { isDarkMode, toggleTheme } = useTheme();
   const router = useRouter();
   
@@ -59,16 +60,27 @@ export default function ProfileScreen() {
     setShowSalaryModal(true);
   };
 
-  const handleSalarySave = () => {
+  const handleSalarySave = async () => {
     if (!monthlySalary || isNaN(parseFloat(monthlySalary))) {
       Alert.alert('Error', 'Please enter a valid salary amount');
       return;
     }
 
-    // Here you would typically update the user's salary in the database
-    // For now, we'll just show a success message
-    Alert.alert('Success', 'Monthly salary updated successfully!');
-    setShowSalaryModal(false);
+    try {
+      if (!user) return;
+      const amount = parseFloat(monthlySalary);
+      const result = await updateUserMonthlyIncome(user.id, amount);
+      if (result.success) {
+        // Update user in context so dashboard reflects new salary
+        setUser(result.user);
+        Alert.alert('Success', 'Monthly salary updated successfully!');
+        setShowSalaryModal(false);
+      } else {
+        Alert.alert('Error', result.error || 'Failed to update salary');
+      }
+    } catch (e) {
+      Alert.alert('Error', 'Failed to update salary');
+    }
   };
 
   const formatCurrency = (amount: number) => {
@@ -76,7 +88,7 @@ export default function ProfileScreen() {
     try {
       return new Intl.NumberFormat('en-IN', {
         style: 'currency',
-        currency: 'INR',
+        currency: 'Rs',
         maximumFractionDigits: 2,
       }).format(amount);
     } catch {
