@@ -159,29 +159,6 @@ export default function HomeScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* Salary Card */}
-        <View style={styles.summarySection}>
-          <View style={styles.summaryCard}>
-            <View style={styles.summaryHeader}>
-              <Text style={styles.summaryLabel}>Monthly Salary</Text>
-              <Ionicons name="cash" size={20} color="#007AFF" />
-            </View>
-            <Text style={styles.summaryAmount}>
-              {formatCurrency((user as any)?.monthly_income || 0)}
-            </Text>
-          </View>
-          <View style={styles.summaryCard}>
-            <View style={styles.summaryHeader}>
-              <Text style={styles.summaryLabel}>Remaining Salary</Text>
-              <Ionicons name="wallet-outline" size={20} color="#4CAF50" />
-            </View>
-            <Text style={[styles.summaryAmount, { color: '#4CAF50' }]}>
-              {formatCurrency(dashboardData.remainingSalary)}
-            </Text>
-            <Text style={styles.summarySubtext}>After this month's expenses</Text>
-          </View>
-        </View>
-
         {/* Summary Cards */}
         <View style={styles.summarySection}>
           <Text style={styles.sectionTitle}>This Month</Text>

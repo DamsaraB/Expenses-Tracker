@@ -2,6 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import {
+<<<<<<< HEAD
     Alert,
     Image,
     Modal,
@@ -13,13 +14,29 @@ import {
     TextInput,
     TouchableOpacity,
     View,
+=======
+  Alert,
+  Modal,
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
+  Switch,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+>>>>>>> 737da7e21a969286db164537b4b48523d5ea4185
 } from 'react-native';
 import { Colors } from '../../constants/theme';
 import { useTheme } from '../../context/ThemeContext';
 import { useUser } from '../../context/UserContext';
+<<<<<<< HEAD
 import { updateUserMonthlyIncome, updateUserProfileImage } from '../../services/database';
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const ImagePicker: any = require('expo-image-picker');
+=======
+import { updateUserMonthlyIncome } from '../../services/database';
+>>>>>>> 737da7e21a969286db164537b4b48523d5ea4185
 
 export default function ProfileScreen() {
   const { user, logout, setUser } = useUser();

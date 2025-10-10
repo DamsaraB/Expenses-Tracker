@@ -385,6 +385,7 @@ export const updateUserMonthlyIncome = async (userId: number, monthlyIncome: num
   }
 };
 
+<<<<<<< HEAD
 // Update user's name, email, and optional phone
 export const updateUserProfile = async (userId: number, name: string, email: string, phone?: string) => {
   try {
@@ -453,5 +454,7 @@ export const getMonthlyRemainingSalary = (userId: number, yearMonth: string) => 
   }
 };
 
+=======
+>>>>>>> 737da7e21a969286db164537b4b48523d5ea4185
 export { db };
 
