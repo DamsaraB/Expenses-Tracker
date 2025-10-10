@@ -1,27 +1,27 @@
 import { Ionicons } from '@expo/vector-icons';
 import React, { useEffect, useState } from 'react';
 import {
-    Alert,
-    FlatList,
-    Modal,
-    SafeAreaView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  Alert,
+  FlatList,
+  Modal,
+  SafeAreaView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import { Colors } from '../../constants/theme';
 import { useTheme } from '../../context/ThemeContext';
 import { useUser } from '../../context/UserContext';
 import {
-    addExpense,
-    deleteExpense,
-    Expense,
-    ExpenseCategory,
-    getUserCategories,
-    getUserExpenses,
-    updateExpense
+  addExpense,
+  deleteExpense,
+  Expense,
+  ExpenseCategory,
+  getUserCategories,
+  getUserExpenses,
+  updateExpense
 } from '../../services/expenseService';
 
 export default function ExpensesScreen() {
@@ -75,7 +75,7 @@ export default function ExpensesScreen() {
     try {
       return new Intl.NumberFormat('en-IN', {
         style: 'currency',
-        currency: 'INR',
+        currency: 'Rs',
         maximumFractionDigits: 2,
       }).format(amount);
     } catch {

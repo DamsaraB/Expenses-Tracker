@@ -2,22 +2,48 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
-    Alert,
-    SafeAreaView,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  Alert,
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import { useUser } from '../../context/UserContext';
 import { getBudgetSummary } from '../../services/budgetService';
 import { getUserExpenses } from '../../services/expenseService';
 import { getSavingsSummary } from '../../services/savingsService';
 
+type Expense = {
+  id: string;
+  title: string;
+  amount: number;
+  date: string;
+  category_name?: string;
+  category_icon?: string;
+};
+
+type BudgetSummary = {
+  totalBudget: number;
+  totalSpent: number;
+  remaining: number;
+};
+
+type SavingsSummary = {
+  totalTarget: number;
+  totalSaved: number;
+  progress: number;
+};
+
 export default function HomeScreen() {
   const { user } = useUser();
-  const [dashboardData, setDashboardData] = useState({
+  const [dashboardData, setDashboardData] = useState<{
+    totalExpenses: number;
+    recentExpenses: Expense[];
+    budgetSummary: BudgetSummary;
+    savingsSummary: SavingsSummary;
+  }>({
     totalExpenses: 0,
     recentExpenses: [],
     budgetSummary: { totalBudget: 0, totalSpent: 0, remaining: 0 },
@@ -73,7 +99,7 @@ export default function HomeScreen() {
         router.push('/savings');
         break;
       case 'View Reports':
-        router.push('/reports');
+        router.push('/profile');
         break;
       default:
         Alert.alert('Quick Action', `${action} feature coming soon!`);
@@ -84,7 +110,7 @@ export default function HomeScreen() {
     try {
       return new Intl.NumberFormat('en-IN', {
         style: 'currency',
-        currency: 'INR',
+        currency: 'Rs',
         maximumFractionDigits: 2,
       }).format(amount);
     } catch {
