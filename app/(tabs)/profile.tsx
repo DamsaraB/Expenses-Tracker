@@ -2,21 +2,24 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import {
-  Alert,
-  Modal,
-  SafeAreaView,
-  ScrollView,
-  StyleSheet,
-  Switch,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
+    Alert,
+    Image,
+    Modal,
+    SafeAreaView,
+    ScrollView,
+    StyleSheet,
+    Switch,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from 'react-native';
 import { Colors } from '../../constants/theme';
 import { useTheme } from '../../context/ThemeContext';
 import { useUser } from '../../context/UserContext';
-import { updateUserMonthlyIncome } from '../../services/database';
+import { updateUserMonthlyIncome, updateUserProfileImage } from '../../services/database';
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const ImagePicker: any = require('expo-image-picker');
 
 export default function ProfileScreen() {
   const { user, logout, setUser } = useUser();
@@ -25,6 +28,7 @@ export default function ProfileScreen() {
   
   const [showSalaryModal, setShowSalaryModal] = useState(false);
   const [monthlySalary, setMonthlySalary] = useState((user as any)?.monthly_income?.toString() || '');
+  const [isPicking, setIsPicking] = useState(false);
 
   const handleLogout = () => {
     Alert.alert(
@@ -46,6 +50,44 @@ export default function ProfileScreen() {
 
   const handleEditProfile = () => {
     router.push('/profile/edit');
+  };
+  const handlePickAvatar = async () => {
+    try {
+      if (!user) return;
+      setIsPicking(true);
+      const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (permission.status !== 'granted') {
+        Alert.alert('Permission needed', 'Please allow photo library access to choose a profile picture.');
+        setIsPicking(false);
+        return;
+      }
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.8,
+      });
+      if (result.canceled) {
+        setIsPicking(false);
+        return;
+      }
+      const uri = result.assets?.[0]?.uri;
+      if (!uri) {
+        setIsPicking(false);
+        return;
+      }
+      const update = await updateUserProfileImage(user.id, uri);
+      if (update.success) {
+        setUser(update.user);
+        Alert.alert('Success', 'Profile picture updated');
+      } else {
+        Alert.alert('Error', update.error || 'Failed to update profile picture');
+      }
+    } catch (e) {
+      Alert.alert('Error', 'Failed to pick image');
+    } finally {
+      setIsPicking(false);
+    }
   };
 
   const handlePrivacy = () => {
@@ -133,13 +175,27 @@ export default function ProfileScreen() {
 
         {/* User Info Card */}
         <View style={[styles.userCard, { backgroundColor: Colors[isDarkMode ? 'dark' : 'light'].background, borderColor: Colors[isDarkMode ? 'dark' : 'light'].icon + '20' }]}>
-          <View style={styles.avatarContainer}>
-            <View style={[styles.avatar, { backgroundColor: Colors[isDarkMode ? 'dark' : 'light'].tint }]}>
-              <Text style={styles.avatarText}>
-                {user?.name?.charAt(0).toUpperCase() || 'U'}
-              </Text>
-            </View>
-          </View>
+        <View style={styles.avatarContainer}>
+          <TouchableOpacity onPress={handlePickAvatar} disabled={isPicking}>
+            {(user as any)?.profile_image ? (
+              <View style={styles.avatarImageWrapper}>
+                <Image source={{ uri: (user as any).profile_image }} style={styles.avatarImage} />
+                <View style={styles.cameraBadge}>
+                  <Ionicons name="camera" size={16} color="#fff" />
+                </View>
+              </View>
+            ) : (
+              <View style={[styles.avatar, { backgroundColor: Colors[isDarkMode ? 'dark' : 'light'].tint }]}>
+                <Text style={styles.avatarText}>
+                  {user?.name?.charAt(0).toUpperCase() || 'U'}
+                </Text>
+                <View style={styles.cameraBadge}>
+                  <Ionicons name="camera" size={16} color="#fff" />
+                </View>
+              </View>
+            )}
+          </TouchableOpacity>
+        </View>
           <View style={styles.userInfo}>
             <Text style={[styles.userName, { color: Colors[isDarkMode ? 'dark' : 'light'].text }]}>
               {user?.name || 'User'}
@@ -326,6 +382,28 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatarImageWrapper: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    overflow: 'hidden',
+    position: 'relative',
+  },
+  avatarImage: {
+    width: '100%',
+    height: '100%',
+  },
+  cameraBadge: {
+    position: 'absolute',
+    right: -2,
+    bottom: -2,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: '#00000080',
     alignItems: 'center',
     justifyContent: 'center',
   },

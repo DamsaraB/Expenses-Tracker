@@ -16,6 +16,7 @@ import {
 import { Colors } from '../../constants/theme';
 import { useTheme } from '../../context/ThemeContext';
 import { useUser } from '../../context/UserContext';
+import { updateUserProfile } from '../../services/database';
 
 export default function EditProfileScreen() {
   const { user, setUser } = useUser();
@@ -25,6 +26,7 @@ export default function EditProfileScreen() {
   const [formData, setFormData] = useState({
     name: user?.name || '',
     email: user?.email || '',
+    phone: (user as any)?.phone || '',
   });
   const [loading, setLoading] = useState(false);
 
@@ -41,15 +43,19 @@ export default function EditProfileScreen() {
 
     setLoading(true);
     try {
-      // Here you would typically call an API to update the user profile
-      // For now, we'll just update the local state
-      const updatedUser = {
-        ...user,
-        name: formData.name.trim(),
-        email: formData.email.trim(),
-      };
-      
-      setUser(updatedUser);
+      const result = await updateUserProfile(
+        (user as any)?.id,
+        formData.name.trim(),
+        formData.email.trim(),
+        formData.phone?.trim() || undefined
+      );
+      if (result.success) {
+        setUser(result.user);
+      } else {
+        Alert.alert('Error', result.error || 'Failed to update profile');
+        setLoading(false);
+        return;
+      }
       Alert.alert('Success', 'Profile updated successfully!', [
         { text: 'OK', onPress: () => router.back() }
       ]);
@@ -152,6 +158,8 @@ export default function EditProfileScreen() {
                 placeholder="Enter your phone number"
                 placeholderTextColor={Colors[isDarkMode ? 'dark' : 'light'].icon}
                 keyboardType="phone-pad"
+              value={formData.phone}
+              onChangeText={(text) => setFormData({ ...formData, phone: text })}
               />
             </View>
           </View>

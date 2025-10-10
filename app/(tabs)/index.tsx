@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { useUser } from '../../context/UserContext';
 import { getBudgetSummary } from '../../services/budgetService';
+import { getMonthlyRemainingSalary } from '../../services/database';
 import { getUserExpenses } from '../../services/expenseService';
 import { getSavingsSummary } from '../../services/savingsService';
 
@@ -43,11 +44,13 @@ export default function HomeScreen() {
     recentExpenses: Expense[];
     budgetSummary: BudgetSummary;
     savingsSummary: SavingsSummary;
+     remainingSalary: number;
   }>({
     totalExpenses: 0,
     recentExpenses: [],
     budgetSummary: { totalBudget: 0, totalSpent: 0, remaining: 0 },
-    savingsSummary: { totalTarget: 0, totalSaved: 0, progress: 0 }
+     savingsSummary: { totalTarget: 0, totalSaved: 0, progress: 0 },
+     remainingSalary: 0,
   });
   const [loading, setLoading] = useState(true);
 
@@ -79,11 +82,14 @@ export default function HomeScreen() {
       );
       const totalExpenses = monthlyExpenses.reduce((sum, expense) => sum + expense.amount, 0);
 
+      const remainingSalary = await getMonthlyRemainingSalary(user.id, currentMonth);
+
       setDashboardData({
         totalExpenses,
         recentExpenses: expenses,
         budgetSummary,
-        savingsSummary
+        savingsSummary,
+        remainingSalary
       });
     } catch (error) {
       console.error('Error loading dashboard data:', error);
@@ -163,6 +169,16 @@ export default function HomeScreen() {
             <Text style={styles.summaryAmount}>
               {formatCurrency((user as any)?.monthly_income || 0)}
             </Text>
+          </View>
+          <View style={styles.summaryCard}>
+            <View style={styles.summaryHeader}>
+              <Text style={styles.summaryLabel}>Remaining Salary</Text>
+              <Ionicons name="wallet-outline" size={20} color="#4CAF50" />
+            </View>
+            <Text style={[styles.summaryAmount, { color: '#4CAF50' }]}>
+              {formatCurrency(dashboardData.remainingSalary)}
+            </Text>
+            <Text style={styles.summarySubtext}>After this month's expenses</Text>
           </View>
         </View>
 
@@ -261,7 +277,7 @@ export default function HomeScreen() {
 
             <TouchableOpacity 
               style={styles.actionButton}
-              onPress={() => handleQuickAction('View Reports')}
+              onPress={() => handleQuickAction('View Profile')}
             >
               <Ionicons name="analytics" size={32} color="#9C27B0" />
               <Text style={styles.actionText}>Reports</Text>

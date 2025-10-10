@@ -75,7 +75,7 @@ export default function ExpensesScreen() {
     try {
       return new Intl.NumberFormat('en-IN', {
         style: 'currency',
-        currency: 'Rs.',
+        currency: 'Rs',
         maximumFractionDigits: 2,
       }).format(amount);
     } catch {

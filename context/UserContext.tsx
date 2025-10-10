@@ -7,6 +7,7 @@ interface User {
   name: string;
   email: string;
   monthly_income?: number; // Monthly income for budget planning
+  profile_image?: string; // Local URI to avatar image
 }
 
 interface UserContextType {
