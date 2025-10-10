@@ -338,5 +338,23 @@ export const getUserById = async (userId: number) => {
   }
 };
 
+// Update user's monthly income
+export const updateUserMonthlyIncome = async (userId: number, monthlyIncome: number) => {
+  try {
+    db.runSync(
+      'UPDATE users SET monthly_income = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+      [monthlyIncome, userId]
+    );
+    const updated = db.getFirstSync(
+      'SELECT id, name, email, monthly_income, currency FROM users WHERE id = ?',
+      [userId]
+    ) as any;
+    return { success: true, user: updated };
+  } catch (error) {
+    console.error('Update monthly income error:', error);
+    return { success: false, error: 'Failed to update monthly income' };
+  }
+};
+
 export { db };
 

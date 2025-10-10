@@ -57,6 +57,11 @@ export default function HomeScreen() {
     }
   }, [user]);
 
+  // Re-render when salary changes without full reload
+  useEffect(() => {
+    // no-op: dependency to trigger render when monthly income updates
+  }, [user?.monthly_income]);
+
   const loadDashboardData = async () => {
     if (!user) return;
     
@@ -146,6 +151,19 @@ export default function HomeScreen() {
           <TouchableOpacity style={styles.notificationButton}>
             <Ionicons name="notifications-outline" size={24} color="#666" />
           </TouchableOpacity>
+        </View>
+
+        {/* Salary Card */}
+        <View style={styles.summarySection}>
+          <View style={styles.summaryCard}>
+            <View style={styles.summaryHeader}>
+              <Text style={styles.summaryLabel}>Monthly Salary</Text>
+              <Ionicons name="cash" size={20} color="#007AFF" />
+            </View>
+            <Text style={styles.summaryAmount}>
+              {formatCurrency((user as any)?.monthly_income || 0)}
+            </Text>
+          </View>
         </View>
 
         {/* Summary Cards */}
