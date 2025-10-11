@@ -1,7 +1,7 @@
 import * as Crypto from 'expo-crypto';
 import * as SQLite from 'expo-sqlite';
 
-const db = SQLite.openDatabaseSync('expenseTracker_v2.db');
+const db = SQLite.openDatabaseSync('expenseTracker_v3.db');
 
 let __dbInitialized = false;
 
@@ -97,7 +97,7 @@ export const initDatabase = () => {
         title TEXT NOT NULL,
         amount REAL NOT NULL CHECK(amount > 0),
         description TEXT,
-        date DATE NOT NULL,
+        expense_date DATE NOT NULL,
         payment_method TEXT DEFAULT 'cash',
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -112,6 +112,7 @@ export const initDatabase = () => {
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         user_id INTEGER NOT NULL,
         category_id INTEGER NOT NULL,
+        title TEXT NOT NULL,
         amount REAL NOT NULL CHECK(amount > 0),
         period TEXT NOT NULL DEFAULT 'monthly',
         start_date DATE NOT NULL,
@@ -155,7 +156,7 @@ export const initDatabase = () => {
         amount REAL NOT NULL,
         transaction_type TEXT NOT NULL CHECK(transaction_type IN ('deposit', 'withdrawal')),
         description TEXT,
-        date DATE NOT NULL,
+        transaction_date DATE NOT NULL,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE,
         FOREIGN KEY (goal_id) REFERENCES savings_goals (id) ON DELETE CASCADE
@@ -171,7 +172,7 @@ export const initDatabase = () => {
         amount REAL NOT NULL CHECK(amount > 0),
         source TEXT NOT NULL,
         description TEXT,
-        date DATE NOT NULL,
+        income_date DATE NOT NULL,
         is_recurring BOOLEAN DEFAULT 0,
         recurring_frequency TEXT,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
