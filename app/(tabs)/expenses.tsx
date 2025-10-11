@@ -14,15 +14,15 @@ import {
 import { Colors } from '../../constants/theme';
 import { useTheme } from '../../context/ThemeContext';
 import { useUser } from '../../context/UserContext';
+import { categoriesApi, expensesApi } from '../../services/api/api'; // Import backend API
 import {
   addExpense,
   deleteExpense,
   Expense,
   ExpenseCategory,
-  getUserCategories,
-  getUserExpenses,
   updateExpense
 } from '../../services/expenseService';
+import { syncService } from '../../services/syncService'; // Add this import
 
 export default function ExpensesScreen() {
   const { user } = useUser();
@@ -46,22 +46,45 @@ export default function ExpensesScreen() {
     }
   }, [user]);
 
+  // After loading categories, set a valid default:
+  useEffect(() => {
+    if (categories.length > 0 && newExpense.categoryId === 0) {
+      setNewExpense(prev => ({ ...prev, categoryId: categories[0].id }));
+    }
+  }, [categories]);
+
   const loadData = async () => {
     if (!user) return;
-    
     try {
       setLoading(true);
       const [expensesData, categoriesData] = await Promise.all([
-        getUserExpenses(user.id),
-        getUserCategories(user.id)
+        expensesApi.list({ user_id: user.id }), // <-- Fetch from backend
+        categoriesApi.list()
       ]);
-      
-      setExpenses(expensesData);
-      setCategories(categoriesData);
-      
-      // Set default category if available
-      if (categoriesData.length > 0 && newExpense.categoryId === 0) {
-        setNewExpense(prev => ({ ...prev, categoryId: categoriesData[0].id }));
+      // Map categories as before
+      const mappedCategories = categoriesData.map(cat => ({
+        id: cat.id,
+        name: cat.name,
+        color: cat.color,
+        icon: cat.icon,
+        user_id: cat.user_id,
+      }));
+      setCategories(mappedCategories);
+
+      // Map expenses to include category fields for UI
+      const mappedExpenses = expensesData.map(exp => {
+        const cat = mappedCategories.find(c => c.id === exp.category_id);
+        return {
+          ...exp,
+          category_name: cat?.name || '',
+          category_color: cat?.color || '#e1e5e9',
+          category_icon: cat?.icon || '💳',
+        };
+      });
+      setExpenses(mappedExpenses);
+
+      if (mappedCategories.length > 0 && newExpense.categoryId === 0) {
+        setNewExpense(prev => ({ ...prev, categoryId: mappedCategories[0].id }));
       }
     } catch (error) {
       console.error('Error loading data:', error);
@@ -84,7 +107,7 @@ export default function ExpensesScreen() {
   };
 
   const handleAddExpense = async () => {
-    if (!newExpense.title || !newExpense.amount || !user) {
+    if (!newExpense.title || !newExpense.amount || !user || !newExpense.categoryId) {
       Alert.alert('Error', 'Please fill in all required fields');
       return;
     }
@@ -99,6 +122,7 @@ export default function ExpensesScreen() {
       );
 
       if (result.success) {
+        await syncService.syncData(); // <-- Trigger sync to backend
         await loadData(); // Refresh the list
         setNewExpense({ title: '', amount: '', categoryId: categories[0]?.id || 0, description: '' });
         setShowAddModal(false);
@@ -193,7 +217,7 @@ export default function ExpensesScreen() {
       <View style={styles.expenseDetails}>
         <Text style={styles.expenseTitle}>{item.title}</Text>
         <Text style={styles.expenseCategory}>{item.category_name}</Text>
-        <Text style={styles.expenseDate}>{new Date(item.date).toLocaleDateString()}</Text>
+        <Text style={styles.expenseDate}>{new Date(item.expense_date).toLocaleDateString()}</Text>
         {item.description && (
           <Text style={styles.expenseDescription} numberOfLines={1}>{item.description}</Text>
         )}
@@ -237,7 +261,10 @@ export default function ExpensesScreen() {
           <Text style={styles.modalTitle}>
             {showAddModal ? 'Add Expense' : 'Edit Expense'}
           </Text>
-          <TouchableOpacity onPress={showAddModal ? handleAddExpense : handleEditExpense}>
+          <TouchableOpacity
+            onPress={showAddModal ? handleAddExpense : handleEditExpense}
+            disabled={categories.length === 0 || newExpense.categoryId === 0}
+          >
             <Text style={styles.saveButton}>Save</Text>
           </TouchableOpacity>
         </View>

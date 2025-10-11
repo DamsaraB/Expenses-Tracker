@@ -20,7 +20,7 @@ type Expense = {
   id: string;
   title: string;
   amount: number;
-  date: string;
+  expense_date: string;
   category_name?: string;
   category_icon?: string;
 };
@@ -76,7 +76,7 @@ export default function HomeScreen() {
 
       const currentMonth = new Date().toISOString().substr(0, 7);
       const monthlyExpenses = expenses.filter(expense => 
-        expense.date.startsWith(currentMonth)
+        expense.expense_date.startsWith(currentMonth)
       );
       const totalExpenses = monthlyExpenses.reduce((sum, expense) => sum + expense.amount, 0);
 
@@ -84,7 +84,10 @@ export default function HomeScreen() {
 
       setDashboardData({
         totalExpenses,
-        recentExpenses: expenses,
+        recentExpenses: expenses.map(expense => ({
+          ...expense,
+          id: expense.id.toString()
+        })),
         budgetSummary,
         savingsSummary,
         remainingSalary
@@ -292,7 +295,7 @@ export default function HomeScreen() {
                 <View style={styles.transactionDetails}>
                   <Text style={styles.transactionTitle}>{expense.title}</Text>
                   <Text style={styles.transactionCategory}>{expense.category_name}</Text>
-                  <Text style={styles.transactionDate}>{new Date(expense.date).toLocaleDateString()}</Text>
+                  <Text style={styles.transactionDate}>{new Date(expense.expense_date).toLocaleDateString()}</Text>
                 </View>
                 <Text style={styles.transactionAmount}>-{formatCurrency(expense.amount)}</Text>
               </View>
