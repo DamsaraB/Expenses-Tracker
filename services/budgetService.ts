@@ -59,7 +59,7 @@ export const getUserBudgets = (userId: number): Budget[] => {
       JOIN expense_categories c ON b.category_id = c.id
       LEFT JOIN expenses e ON e.category_id = b.category_id 
         AND e.user_id = b.user_id 
-        AND e.date BETWEEN b.start_date AND b.end_date
+        AND e.expense_date BETWEEN b.start_date AND b.end_date
       WHERE b.user_id = ? AND b.is_active = 1
       GROUP BY b.id, b.category_id, c.name, c.icon, b.amount, b.period, b.start_date, b.end_date, b.user_id
       ORDER BY b.created_at DESC
@@ -123,7 +123,7 @@ export const getBudgetSummary = (userId: number) => {
         FROM budgets b
         LEFT JOIN expenses e ON e.category_id = b.category_id 
           AND e.user_id = b.user_id 
-          AND e.date BETWEEN b.start_date AND b.end_date
+          AND e.expense_date BETWEEN b.start_date AND b.end_date
         WHERE b.user_id = ? AND b.is_active = 1
         GROUP BY b.id
       ) spent_data ON spent_data.budget_id = b.id

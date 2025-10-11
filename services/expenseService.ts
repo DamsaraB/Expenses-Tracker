@@ -13,7 +13,7 @@ export interface Expense {
   title: string;
   amount: number;
   description?: string;
-  date: string;
+  expense_date: string;
   category_id: number;
   category_name?: string;
   category_icon?: string;
@@ -43,16 +43,14 @@ export const addExpense = (
   amount: number,
   categoryId: number,
   description?: string,
-  date?: string
+  expenseDate?: string // <-- renamed parameter
 ) => {
   try {
-    const expenseDate = date || new Date().toISOString().split('T')[0];
-    
+    const finalDate = expenseDate || new Date().toISOString().split('T')[0];
     const result = db.runSync(
-      'INSERT INTO expenses (user_id, category_id, title, amount, description, date) VALUES (?, ?, ?, ?, ?, ?)',
-      [userId, categoryId, title, amount, description || '', expenseDate]
+      'INSERT INTO expenses (user_id, category_id, title, amount, description, expense_date) VALUES (?, ?, ?, ?, ?, ?)',
+      [userId, categoryId, title, amount, description || '', finalDate]
     );
-    
     return { success: true, expenseId: result.lastInsertRowId };
   } catch (error) {
     console.error('Add expense error:', error);
@@ -69,7 +67,7 @@ export const getUserExpenses = (userId: number, limit?: number): Expense[] => {
         e.title,
         e.amount,
         e.description,
-        e.date,
+        e.expense_date, -- changed here
         e.category_id,
         c.name as category_name,
         c.icon as category_icon,
@@ -78,7 +76,7 @@ export const getUserExpenses = (userId: number, limit?: number): Expense[] => {
       FROM expenses e
       JOIN expense_categories c ON e.category_id = c.id
       WHERE e.user_id = ?
-      ORDER BY e.date DESC, e.created_at DESC
+      ORDER BY e.expense_date DESC, e.created_at DESC
       ${limit ? `LIMIT ${limit}` : ''}
     `;
     
@@ -161,12 +159,12 @@ export const getExpenseBreakdown = (userId: number, startDate?: string, endDate?
     const params: (number | string)[] = [userId];
     
     if (startDate) {
-      query += ' AND e.date >= ?';
+      query += ' AND e.expense_date >= ?';
       params.push(startDate);
     }
     
     if (endDate) {
-      query += ' AND e.date <= ?';
+      query += ' AND e.expense_ date <= ?';
       params.push(endDate);
     }
     

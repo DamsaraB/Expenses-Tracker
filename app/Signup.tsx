@@ -13,7 +13,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { registerUser } from '../services/database';
+import { authApi } from '../services/api/api'; // Import backend API
 import { SignupFormData } from '../types';
 
 export default function SignupScreen() {
@@ -78,23 +78,23 @@ export default function SignupScreen() {
     if (!validateForm()) return;
     setIsLoading(true);
     setErrors({});
-    
+
     try {
-      const result = await registerUser(
-        formData.name.trim(), 
-        formData.email.trim().toLowerCase(), 
-        formData.password
-      );
-      
-      if (result.success) {
+      // Use backend API for registration
+      const result = await authApi.register({
+        name: formData.name.trim(),
+        email: formData.email.trim().toLowerCase(),
+        password: formData.password,
+      });
+
+      if (result && result.id) {
         Alert.alert(
           'Account Created Successfully!',
-          'Welcome to Expense Tracker! Your account has been created and default expense categories have been set up for you.',
+          'Welcome to Expense Tracker! Your account has been created.',
           [
             {
               text: 'Sign In Now',
               onPress: () => {
-                // Pre-fill the email on login screen if possible
                 router.replace({
                   pathname: '/Login',
                   params: { email: formData.email.trim().toLowerCase() }
@@ -104,11 +104,11 @@ export default function SignupScreen() {
           ]
         );
       } else {
-        Alert.alert('Registration Failed', result.error || 'Failed to create account. Please try again.');
+        Alert.alert('Registration Failed', 'Failed to create account. Please try again.');
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Signup error:', error);
-      Alert.alert('Error', 'Registration failed. Please check your connection and try again.');
+      Alert.alert('Error', error?.message || 'Registration failed. Please check your connection and try again.');
     } finally {
       setIsLoading(false);
     }

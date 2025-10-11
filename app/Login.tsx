@@ -15,6 +15,7 @@ import {
   View,
 } from 'react-native';
 import { useUser } from '../context/UserContext';
+import { authApi } from '../services/api/api'; // <-- import backend API
 import { loginUser } from '../services/database';
 import { LoginFormData } from '../types';
 
@@ -66,36 +67,42 @@ export default function LoginScreen() {
     setErrors({});
     
     try {
-      console.log('Attempting login for:', formData.email.trim());
-      
-      const result = await loginUser(
-        formData.email.trim().toLowerCase(), 
+      // 1. Try backend login first
+      try {
+        const backendResult = await authApi.login({
+          email: formData.email.trim().toLowerCase(),
+          password: formData.password,
+        });
+        // If backend login succeeds, save token/user info
+        await AsyncStorage.setItem('authToken', backendResult.access_token);
+        await AsyncStorage.setItem('userId', backendResult.user_id.toString());
+        setUser({
+          id: backendResult.user_id,
+          name: backendResult.name,
+          email: formData.email.trim().toLowerCase(),
+          // Add other fields if needed
+        });
+        router.replace('/(tabs)/');
+        setIsLoading(false);
+        return;
+      } catch (backendError) {
+        console.log('Backend login failed, trying local:', backendError);
+      }
+
+      // 2. Fallback to local SQLite login
+      const localResult = await loginUser(
+        formData.email.trim().toLowerCase(),
         formData.password
       );
-      
-      console.log('Login result:', result);
-      
-      if (result.success && result.user) {
-        // Save user ID to AsyncStorage for persistence
-        await AsyncStorage.setItem('userId', result.user.id.toString());
-        
-        // Update user context
-        setUser(result.user);
-        
-        console.log('Login successful, navigating to tabs...');
-        
-        // Navigate to main app (replace to prevent back navigation to login)
+      if (localResult.success && localResult.user) {
+        await AsyncStorage.setItem('userId', localResult.user.id.toString());
+        setUser(localResult.user);
         router.replace('/(tabs)/');
-        
-        // Optional: Show success message
-        // Alert.alert('Welcome!', `Hello ${result.user.name}, you're successfully logged in!`);
       } else {
-        const errorMessage = result.error || 'Invalid email or password';
-        console.error('Login failed:', errorMessage);
+        const errorMessage = localResult.error || 'Invalid email or password';
         Alert.alert('Login Failed', errorMessage);
       }
     } catch (error) {
-      console.error('Login error:', error);
       Alert.alert('Error', 'Login failed. Please check your connection and try again.');
     } finally {
       setIsLoading(false);

@@ -1,7 +1,7 @@
 import * as Crypto from 'expo-crypto';
 import * as SQLite from 'expo-sqlite';
 
-const db = SQLite.openDatabaseSync('expenseTracker_v3.db');
+const db = SQLite.openDatabaseSync('expenseTracker_v5.db');
 
 // Add this function to drop and recreate database
 export const resetDatabase = () => {
@@ -45,7 +45,10 @@ export const initDatabase = () => {
         monthly_income REAL DEFAULT 0,
         currency TEXT DEFAULT 'INR',
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        sync_status TEXT DEFAULT 'pending',         
+        server_id INTEGER,                          
+        last_modified DATETIME DEFAULT CURRENT_TIMESTAMP
       );
     `);
 
@@ -60,6 +63,9 @@ export const initDatabase = () => {
         is_default BOOLEAN DEFAULT 0,
         is_active BOOLEAN DEFAULT 1,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        sync_status TEXT DEFAULT 'pending',         
+        server_id INTEGER,                          
+        last_modified DATETIME DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE,
         UNIQUE(user_id, name)
       );
@@ -78,6 +84,9 @@ export const initDatabase = () => {
         payment_method TEXT DEFAULT 'cash',
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        sync_status TEXT DEFAULT 'pending',         
+        server_id INTEGER,                          
+        last_modified DATETIME DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE,
         FOREIGN KEY (category_id) REFERENCES expense_categories (id)
       );
@@ -98,6 +107,9 @@ export const initDatabase = () => {
         is_active BOOLEAN DEFAULT 1,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        sync_status TEXT DEFAULT 'pending',         
+        server_id INTEGER,                          
+        last_modified DATETIME DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE,
         FOREIGN KEY (category_id) REFERENCES expense_categories (id),
         UNIQUE(user_id, category_id, start_date, end_date)
@@ -120,6 +132,9 @@ export const initDatabase = () => {
         is_active BOOLEAN DEFAULT 1,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        sync_status TEXT DEFAULT 'pending',         
+        server_id INTEGER,                          
+        last_modified DATETIME DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
       );
     `);
@@ -135,6 +150,9 @@ export const initDatabase = () => {
         description TEXT,
         transaction_date DATE NOT NULL,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        sync_status TEXT DEFAULT 'pending',         
+        server_id INTEGER,                          
+        last_modified DATETIME DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE,
         FOREIGN KEY (goal_id) REFERENCES savings_goals (id) ON DELETE CASCADE
       );
@@ -154,12 +172,15 @@ export const initDatabase = () => {
         recurring_frequency TEXT,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        sync_status TEXT DEFAULT 'pending',         
+        server_id INTEGER,                          
+        last_modified DATETIME DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
       );
     `);
 
     // Create indexes for better performance
-    db.execSync(`CREATE INDEX IF NOT EXISTS idx_expenses_user_date ON expenses (user_id, date DESC);`);
+    db.execSync(`CREATE INDEX IF NOT EXISTS idx_expenses_user_date ON expenses (user_id, expense_date DESC);`);
     db.execSync(`CREATE INDEX IF NOT EXISTS idx_expenses_category ON expenses (category_id);`);
     db.execSync(`CREATE INDEX IF NOT EXISTS idx_budgets_user_active ON budgets (user_id, is_active);`);
     db.execSync(`CREATE INDEX IF NOT EXISTS idx_savings_goals_user ON savings_goals (user_id, is_active);`);

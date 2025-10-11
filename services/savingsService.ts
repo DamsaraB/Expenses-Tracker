@@ -19,7 +19,7 @@ export interface SavingsTransaction {
   amount: number;
   transaction_type: 'deposit' | 'withdrawal';
   description?: string;
-  date: string;
+  transaction_date: string;
 }
 
 // Add savings goal
@@ -110,7 +110,7 @@ export const addMoneyToGoal = (
     
     // Add transaction record
     db.runSync(
-      'INSERT INTO savings_transactions (user_id, goal_id, amount, transaction_type, description, date) VALUES (?, ?, ?, ?, ?, ?)',
+      'INSERT INTO savings_transactions (user_id, goal_id, amount, transaction_type, description, transaction_date) VALUES (?, ?, ?, ?, ?, ?)',
       [userId, goalId, amount, 'deposit', description || '', new Date().toISOString().split('T')[0]]
     );
     

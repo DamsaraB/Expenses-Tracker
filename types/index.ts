@@ -13,7 +13,7 @@ export interface Expense {
   title: string;
   amount: number;
   description?: string;
-  date: string;
+  expense_date: string;
   category_id: number;
   category_name?: string;
   category_icon?: string;
