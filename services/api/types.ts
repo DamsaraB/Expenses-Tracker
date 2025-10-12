@@ -273,6 +273,7 @@ export interface SavingsTransactionUpdate {
 }
 
 export interface SavingsTransactionResponse {
+  updated_at: string;
   id: number;
   user_id: number;
   goal_id: number;

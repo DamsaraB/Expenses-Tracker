@@ -1,29 +1,31 @@
 import { Ionicons } from '@expo/vector-icons';
 import React, { useEffect, useState } from 'react';
 import {
-    Alert,
-    FlatList,
-    Modal,
-    SafeAreaView,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  Alert,
+  FlatList,
+  Modal,
+  RefreshControl,
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import { Colors } from '../../constants/theme';
 import { useTheme } from '../../context/ThemeContext';
 import { useUser } from '../../context/UserContext';
 import {
-    addMoneyToGoal,
-    addSavingsGoal,
-    deleteSavingsGoal,
-    getSavingsSummary,
-    getUserSavingsGoals,
-    SavingsGoal,
-    updateSavingsGoal
+  addMoneyToGoal,
+  addSavingsGoal,
+  deleteSavingsGoal,
+  getSavingsSummary,
+  getUserSavingsGoals,
+  SavingsGoal,
+  updateSavingsGoal
 } from '../../services/savingsService';
+import { syncService } from '../../services/syncService';
 
 export default function SavingsScreen() {
   const { user } = useUser();
@@ -44,6 +46,7 @@ export default function SavingsScreen() {
   });
   const [addMoneyAmount, setAddMoneyAmount] = useState('');
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -56,19 +59,27 @@ export default function SavingsScreen() {
     
     try {
       setLoading(true);
-      const [goalsData, summaryData] = await Promise.all([
-        getUserSavingsGoals(user.id),
-        getSavingsSummary(user.id)
-      ]);
       
-      setSavingsGoals(goalsData);
-      setSummary(summaryData);
+      // ONLY load from local SQLite (like budget)
+      const localGoals = getUserSavingsGoals(user.id);
+      const localSummary = getSavingsSummary(user.id);
+      setSavingsGoals(localGoals);
+      setSummary(localSummary);
+      
+      // Background sync (no await - don't block UI)
+      syncService.syncData().catch(console.error);
+      
     } catch (error) {
       console.error('Error loading savings data:', error);
-      Alert.alert('Error', 'Failed to load savings data');
     } finally {
       setLoading(false);
     }
+  };
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await loadData();
+    setRefreshing(false);
   };
 
   const formatCurrency = (amount: number) => {
@@ -130,6 +141,7 @@ export default function SavingsScreen() {
     }
 
     try {
+      // Add ONLY to local SQLite (like budget)
       const result = await addSavingsGoal(
         user.id,
         newGoal.title,
@@ -140,12 +152,13 @@ export default function SavingsScreen() {
       );
 
       if (result.success) {
-        await loadData(); // Refresh the data
+        await loadData(); // Refresh local data
         setNewGoal({ title: '', targetAmount: '', targetDate: '', category: 'Emergency', description: '' });
         setShowAddModal(false);
         Alert.alert('Success', 'Savings goal added successfully!');
-      } else {
-        Alert.alert('Error', result.error || 'Failed to add savings goal');
+        
+        // Background sync (no await)
+        syncService.syncData().catch(console.error);
       }
     } catch (error) {
       Alert.alert('Error', 'Failed to add savings goal');
@@ -159,6 +172,7 @@ export default function SavingsScreen() {
     }
 
     try {
+      // Update local database first
       const result = await updateSavingsGoal(
         selectedGoal.id,
         user.id,
@@ -196,6 +210,7 @@ export default function SavingsScreen() {
             if (!user) return;
             
             try {
+              // Delete from local database first
               const result = await deleteSavingsGoal(goal.id, user.id);
               if (result.success) {
                 await loadData(); // Refresh the data
@@ -225,6 +240,7 @@ export default function SavingsScreen() {
     }
 
     try {
+      // Add to local database first
       const result = await addMoneyToGoal(
         selectedGoal.id,
         user.id,
@@ -533,7 +549,18 @@ export default function SavingsScreen() {
         </TouchableOpacity>
       </View>
 
-      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+      <ScrollView 
+        style={styles.scrollView} 
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={[Colors[isDarkMode ? 'dark' : 'light'].tint]}
+            tintColor={Colors[isDarkMode ? 'dark' : 'light'].tint}
+          />
+        }
+      >
         {/* Summary Card */}
         <View style={[styles.summaryCard, { backgroundColor: Colors[isDarkMode ? 'dark' : 'light'].background, borderColor: Colors[isDarkMode ? 'dark' : 'light'].icon + '20' }]}>
           <Text style={[styles.summaryTitle, { color: Colors[isDarkMode ? 'dark' : 'light'].text }]}>

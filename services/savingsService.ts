@@ -11,6 +11,11 @@ export interface SavingsGoal {
   priority: number;
   is_achieved: boolean;
   user_id: number;
+  server_id?: number;
+  sync_status?: string;
+  created_at?: string;
+  updated_at?: string;
+  is_active?: boolean;
 }
 
 export interface SavingsTransaction {
@@ -20,9 +25,13 @@ export interface SavingsTransaction {
   transaction_type: 'deposit' | 'withdrawal';
   description?: string;
   transaction_date: string;
+  user_id: number;
+  server_id?: number;
+  sync_status?: string;
+  created_at?: string;
 }
 
-// Add savings goal
+// Add savings goal (LOCAL FIRST - like budget)
 export const addSavingsGoal = (
   userId: number,
   title: string,
@@ -34,8 +43,8 @@ export const addSavingsGoal = (
 ) => {
   try {
     const result = db.runSync(
-      'INSERT INTO savings_goals (user_id, title, description, target_amount, target_date, category, priority) VALUES (?, ?, ?, ?, ?, ?, ?)',
-      [userId, title, description || '', targetAmount, targetDate || null, category, priority]
+      'INSERT INTO savings_goals (user_id, title, description, target_amount, target_date, category, priority, current_amount, is_achieved, is_active, sync_status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      [userId, title, description || '', targetAmount, targetDate || null, category, priority, 0, 0, 1, 'pending']
     );
     
     return { success: true, goalId: result.lastInsertRowId };
@@ -45,7 +54,7 @@ export const addSavingsGoal = (
   }
 };
 
-// Get user's savings goals
+// Get user's savings goals (LOCAL ONLY - like budget)
 export const getUserSavingsGoals = (userId: number): SavingsGoal[] => {
   try {
     const result = db.getAllSync(
@@ -60,7 +69,7 @@ export const getUserSavingsGoals = (userId: number): SavingsGoal[] => {
   }
 };
 
-// Update savings goal
+// Update savings goal (LOCAL FIRST - like budget)
 export const updateSavingsGoal = (
   goalId: number,
   userId: number,
@@ -72,8 +81,8 @@ export const updateSavingsGoal = (
 ) => {
   try {
     db.runSync(
-      'UPDATE savings_goals SET title = ?, target_amount = ?, category = ?, target_date = ?, description = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND user_id = ?',
-      [title, targetAmount, category, targetDate || null, description || '', goalId, userId]
+      'UPDATE savings_goals SET title = ?, target_amount = ?, category = ?, target_date = ?, description = ?, sync_status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND user_id = ?',
+      [title, targetAmount, category, targetDate || null, description || '', 'modified', goalId, userId]
     );
     
     return { success: true };
@@ -83,12 +92,12 @@ export const updateSavingsGoal = (
   }
 };
 
-// Delete savings goal
+// Delete savings goal (LOCAL FIRST - like budget)
 export const deleteSavingsGoal = (goalId: number, userId: number) => {
   try {
     db.runSync(
-      'DELETE FROM savings_goals WHERE id = ? AND user_id = ?',
-      [goalId, userId]
+      'UPDATE savings_goals SET is_active = 0, sync_status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND user_id = ?',
+      ['deleted', goalId, userId]
     );
     
     return { success: true };
@@ -98,7 +107,7 @@ export const deleteSavingsGoal = (goalId: number, userId: number) => {
   }
 };
 
-// Add money to savings goal
+// Add money to savings goal (LOCAL FIRST - like budget)
 export const addMoneyToGoal = (
   goalId: number,
   userId: number,
@@ -108,16 +117,16 @@ export const addMoneyToGoal = (
   try {
     db.execSync('BEGIN TRANSACTION;');
     
-    // Add transaction record
+    // Add transaction record with sync status
     db.runSync(
-      'INSERT INTO savings_transactions (user_id, goal_id, amount, transaction_type, description, transaction_date) VALUES (?, ?, ?, ?, ?, ?)',
-      [userId, goalId, amount, 'deposit', description || '', new Date().toISOString().split('T')[0]]
+      'INSERT INTO savings_transactions (user_id, goal_id, amount, transaction_type, description, transaction_date, sync_status) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      [userId, goalId, amount, 'deposit', description || '', new Date().toISOString().split('T')[0], 'pending']
     );
     
-    // Update current amount in goal
+    // Update current amount in goal and mark as modified
     db.runSync(
-      'UPDATE savings_goals SET current_amount = current_amount + ?, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND user_id = ?',
-      [amount, goalId, userId]
+      'UPDATE savings_goals SET current_amount = current_amount + ?, sync_status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND user_id = ?',
+      [amount, 'modified', goalId, userId]
     );
     
     // Check if goal is achieved
@@ -134,6 +143,7 @@ export const addMoneyToGoal = (
     }
     
     db.execSync('COMMIT;');
+    
     return { success: true };
   } catch (error) {
     db.execSync('ROLLBACK;');
@@ -142,7 +152,7 @@ export const addMoneyToGoal = (
   }
 };
 
-// Get savings summary
+// Get savings summary (LOCAL ONLY - like budget)
 export const getSavingsSummary = (userId: number) => {
   try {
     const result = db.getFirstSync(
