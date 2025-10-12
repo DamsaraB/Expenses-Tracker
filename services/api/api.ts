@@ -2,42 +2,42 @@ import axios from 'axios';
 import * as SecureStore from 'expo-secure-store';
 import {
   ApiError,
-  RegisterRequest,
-  LoginRequest,
-  TokenResponse,
-  UserResponse,
-  CategoryCreate,
-  CategoryUpdate,
-  CategoryResponse,
-  ExpenseCreate,
-  ExpenseUpdate,
-  ExpenseResponse,
-  ExpenseListParams,
-  ExpenseSummary,
-  CategoryBreakdown,
-  ExpenseTrends,
   BudgetCreate,
-  BudgetUpdate,
   BudgetResponse,
   BudgetStatus,
+  BudgetUpdate,
+  CategoryBreakdown,
+  CategoryCreate,
+  CategoryResponse,
+  CategoryUpdate,
+  ExpenseCreate,
+  ExpenseListParams,
+  ExpenseResponse,
+  ExpenseSummary,
+  ExpenseTrends,
+  ExpenseUpdate,
+  GoalContribution,
   IncomeCreate,
-  IncomeUpdate,
   IncomeResponse,
+  IncomeUpdate,
+  LoginRequest,
+  RegisterRequest,
   SavingsGoalCreate,
-  SavingsGoalUpdate,
-  SavingsGoalResponse,
   SavingsGoalListParams,
   SavingsGoalProgress,
+  SavingsGoalResponse,
+  SavingsGoalUpdate,
   SavingsTransactionCreate,
-  SavingsTransactionUpdate,
   SavingsTransactionResponse,
-  GoalContribution,
-} from './types'; 
+  SavingsTransactionUpdate,
+  TokenResponse,
+  UserResponse,
+} from './types';
 
 // Base URL Configuration
 const BASE_URL = __DEV__ 
-  ? 'http://129.154.41.196:8000' 
-  : 'http://129.154.41.196:8000';
+  ? 'http://172.25.197.193:8000' 
+  : 'http://172.25.197.193:8000';
 
 // Token storage keys
 const TOKEN_KEY = 'auth_token';
@@ -129,6 +129,13 @@ class ApiClient {
     await SecureStore.deleteItemAsync(USER_KEY);
   }
 
+  async initToken(): Promise<void> {
+    const token = await this.getToken();
+    if (token) {
+      this.token = token;
+    }
+  }
+
   // Generic request method
   async request<T>(config: any): Promise<T> {
     const response = await this.client.request<T>(config);
@@ -136,7 +143,7 @@ class ApiClient {
   }
 }
 
-const apiClient = new ApiClient();
+export const apiClient = new ApiClient();
 
 // ==================== AUTH APIs ====================
 export const authApi = {

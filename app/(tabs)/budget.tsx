@@ -4,6 +4,7 @@ import {
   Alert,
   FlatList,
   Modal,
+  RefreshControl,
   SafeAreaView,
   ScrollView,
   StyleSheet,
@@ -15,6 +16,7 @@ import {
 import { Colors } from '../../constants/theme';
 import { useTheme } from '../../context/ThemeContext';
 import { useUser } from '../../context/UserContext';
+import { budgetsApi, categoriesApi } from '../../services/api/api'; // Import backend APIs
 import {
   addBudget,
   Budget,
@@ -23,7 +25,8 @@ import {
   getUserBudgets,
   updateBudget
 } from '../../services/budgetService';
-import { ExpenseCategory, getUserCategories } from '../../services/expenseService';
+import { ExpenseCategory } from '../../services/expenseService';
+import { syncService } from '../../services/syncService';
 
 export default function BudgetScreen() {
   const { user } = useUser();
@@ -39,8 +42,12 @@ export default function BudgetScreen() {
     categoryId: 0,
     amount: '',
     period: 'monthly',
+    title: '',
+    startDate: '',
+    endDate: '',
   });
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -53,20 +60,66 @@ export default function BudgetScreen() {
     
     try {
       setLoading(true);
-      const [budgetsData, categoriesData, summaryData] = await Promise.all([
+      
+      // First load from local SQLite for immediate display
+      const [localBudgetsData, localSummaryData] = await Promise.all([
         getUserBudgets(user.id),
-        getUserCategories(user.id),
         getBudgetSummary(user.id)
       ]);
       
-      setBudgets(budgetsData);
-      setCategories(categoriesData);
-      setSummary(summaryData);
+      setBudgets(localBudgetsData);
+      setSummary(localSummaryData);
+
+      // Load categories from backend (since they're in Oracle)
+      const [backendCategoriesData, backendBudgetsData] = await Promise.all([
+        categoriesApi.list(),
+        budgetsApi.list()
+      ]);
+      
+      // Map categories to include proper fields
+      const mappedCategories = backendCategoriesData.map(cat => ({
+        id: cat.id,
+        user_id: cat.user_id,
+        name: cat.name,
+        color: cat.color,
+        icon: cat.icon,
+        is_default: cat.is_default,
+        is_active: cat.is_active,
+        created_at: cat.created_at
+      }));
+      setCategories(mappedCategories);
+
+      // Map backend budgets to include category info
+      const mappedBudgets = backendBudgetsData.map(budget => {
+        const category = mappedCategories.find(c => c.id === budget.category_id);
+        return {
+          ...budget,
+          server_id: budget.server_id ?? budget.id,
+          category_name: category?.name || '',
+          category_color: category?.color || '#e1e5e9',
+          category_icon: category?.icon || '💳',
+          spent: budget.spent_amount ?? budget.spent ?? 0, // <-- Use spent_amount if available
+          title: budget.title ?? (category?.name || 'Budget'), // Ensure title property exists
+        };
+      });
+      setBudgets(mappedBudgets);
+
+      // Calculate summary from backend data
+      const backendSummary = {
+        totalBudget: mappedBudgets.reduce((sum, b) => sum + b.amount, 0),
+        totalSpent: mappedBudgets.reduce((sum, b) => sum + (b.spent || 0), 0),
+        remaining: mappedBudgets.reduce((sum, b) => sum + (b.amount - (b.spent || 0)), 0)
+      };
+      setSummary(backendSummary);
       
       // Set default category if available
-      if (categoriesData.length > 0 && newBudget.categoryId === 0) {
-        setNewBudget(prev => ({ ...prev, categoryId: categoriesData[0].id }));
+      if (mappedCategories.length > 0 && newBudget.categoryId === 0) {
+        setNewBudget(prev => ({ ...prev, categoryId: mappedCategories[0].id }));
       }
+
+      // Sync in background
+      await syncService.syncData();
+      
     } catch (error) {
       console.error('Error loading budget data:', error);
       Alert.alert('Error', 'Failed to load budget data');
@@ -79,11 +132,11 @@ export default function BudgetScreen() {
     try {
       return new Intl.NumberFormat('en-IN', {
         style: 'currency',
-        currency: 'Rs',
+        currency: 'INR',
         maximumFractionDigits: 2,
       }).format(amount);
     } catch {
-      return `Rs. ${Number(amount || 0).toLocaleString('en-IN', { maximumFractionDigits: 2, minimumFractionDigits: 2 })}`;
+      return `₹${Number(amount || 0).toLocaleString('en-IN', { maximumFractionDigits: 2, minimumFractionDigits: 2 })}`;
     }
   };
 
@@ -101,28 +154,67 @@ export default function BudgetScreen() {
   };
 
   const handleAddBudget = async () => {
-    if (!newBudget.categoryId || !newBudget.amount || !user) {
+    if (
+      !newBudget.categoryId ||
+      !newBudget.amount ||
+      !newBudget.period ||
+      !newBudget.startDate ||
+      !newBudget.endDate ||
+      !user
+    ) {
       Alert.alert('Error', 'Please fill in all required fields');
       return;
     }
 
+    // Additional checks:
+    if (
+      isNaN(parseFloat(newBudget.amount)) ||
+      !/^\d{4}-\d{2}-\d{2}$/.test(newBudget.startDate) ||
+      !/^\d{4}-\d{2}-\d{2}$/.test(newBudget.endDate)
+    ) {
+      Alert.alert('Error', 'Please enter valid amount and dates (YYYY-MM-DD)');
+      return;
+    }
+
     try {
-      const result = await addBudget(
+      console.log('Budget payload:', {
+        category_id: newBudget.categoryId,
+        amount: parseFloat(newBudget.amount),
+        period: newBudget.period,
+        start_date: newBudget.startDate,
+        end_date: newBudget.endDate,
+      });
+
+      await budgetsApi.create({
+        category_id: newBudget.categoryId,
+        amount: parseFloat(newBudget.amount),
+        period: newBudget.period,
+        start_date: newBudget.startDate, // "YYYY-MM-DD" string is fine
+        end_date: newBudget.endDate,     // "YYYY-MM-DD" string is fine
+        title: newBudget.title,          // <-- Add this line
+      });
+
+      const localResult = await addBudget(
         user.id,
         newBudget.categoryId,
         parseFloat(newBudget.amount),
-        newBudget.period
+        newBudget.period,
+        newBudget.title,
+        newBudget.startDate,
+        newBudget.endDate
       );
 
-      if (result.success) {
-        await loadData(); // Refresh the data
-        setNewBudget({ categoryId: categories[0]?.id || 0, amount: '', period: 'monthly' });
+      if (localResult.success) {
+        await syncService.syncData();
+        await loadData();
+        setNewBudget({ categoryId: categories[0]?.id || 0, amount: '', period: 'monthly', title: '', startDate: '', endDate: '' });
         setShowAddModal(false);
         Alert.alert('Success', 'Budget added successfully!');
       } else {
-        Alert.alert('Error', result.error || 'Failed to add budget');
+        Alert.alert('Error', localResult.error || 'Failed to add budget');
       }
     } catch (error) {
+      console.error('Add budget error:', error);
       Alert.alert('Error', 'Failed to add budget');
     }
   };
@@ -134,23 +226,36 @@ export default function BudgetScreen() {
     }
 
     try {
-      const result = await updateBudget(
+      // Update backend first (if budget has server_id)
+      if (selectedBudget.server_id) {
+        await budgetsApi.update(selectedBudget.server_id, {
+          amount: parseFloat(newBudget.amount),
+          period: newBudget.period,
+        });
+      }
+
+      // Update local SQLite
+      const localResult = await updateBudget(
         selectedBudget.id,
         user.id,
         parseFloat(newBudget.amount),
         newBudget.period
       );
 
-      if (result.success) {
+      if (localResult.success) {
         await loadData(); // Refresh the data
         setShowEditModal(false);
         setSelectedBudget(null);
-        setNewBudget({ categoryId: categories[0]?.id || 0, amount: '', period: 'monthly' });
+        setNewBudget({ categoryId: categories[0]?.id || 0, amount: '', period: 'monthly', title: '', startDate: '', endDate: '' });
         Alert.alert('Success', 'Budget updated successfully!');
+        
+        // Sync in background
+        await syncService.syncData();
       } else {
-        Alert.alert('Error', result.error || 'Failed to update budget');
+        Alert.alert('Error', localResult.error || 'Failed to update budget');
       }
     } catch (error) {
+      console.error('Update budget error:', error);
       Alert.alert('Error', 'Failed to update budget');
     }
   };
@@ -168,14 +273,24 @@ export default function BudgetScreen() {
             if (!user) return;
             
             try {
-              const result = await deleteBudget(budget.id, user.id);
-              if (result.success) {
+              // Delete from backend first (if budget has server_id)
+              if (budget.server_id) {
+                await budgetsApi.delete(budget.server_id);
+              }
+
+              // Delete from local SQLite
+              const localResult = await deleteBudget(budget.id, user.id);
+              if (localResult.success) {
                 await loadData(); // Refresh the data
                 Alert.alert('Success', 'Budget deleted successfully!');
+                
+                // Sync in background
+                await syncService.syncData();
               } else {
-                Alert.alert('Error', result.error || 'Failed to delete budget');
+                Alert.alert('Error', localResult.error || 'Failed to delete budget');
               }
             } catch (error) {
+              console.error('Delete budget error:', error);
               Alert.alert('Error', 'Failed to delete budget');
             }
           },
@@ -190,6 +305,9 @@ export default function BudgetScreen() {
       categoryId: budget.category_id,
       amount: budget.amount.toString(),
       period: budget.period,
+      title: budget.title,
+      startDate: budget.start_date,
+      endDate: budget.end_date,
     });
     setShowEditModal(true);
   };
@@ -230,7 +348,7 @@ export default function BudgetScreen() {
 
       <View style={styles.budgetAmounts}>
         <Text style={[styles.budgetSpent, { color: Colors[isDarkMode ? 'dark' : 'light'].text }]}>
-          {formatCurrency(item.spent || 0)} / {formatCurrency(item.amount)}
+          Spent: {formatCurrency(item.spent || 0)} / {formatCurrency(item.amount)}
         </Text>
         <Text style={[styles.budgetRemaining, { color: Colors[isDarkMode ? 'dark' : 'light'].icon }]}>
           {formatCurrency(item.amount - (item.spent || 0))} remaining
@@ -274,7 +392,7 @@ export default function BudgetScreen() {
             setShowAddModal(false);
             setShowEditModal(false);
             setSelectedBudget(null);
-            setNewBudget({ categoryId: categories[0]?.id || 0, amount: '', period: 'monthly' });
+            setNewBudget({ categoryId: categories[0]?.id || 0, amount: '', period: 'monthly', title: '', startDate: '', endDate: '' });
           }}>
             <Text style={[styles.cancelButton, { color: Colors[isDarkMode ? 'dark' : 'light'].tint }]}>Cancel</Text>
           </TouchableOpacity>
@@ -359,10 +477,67 @@ export default function BudgetScreen() {
               ))}
             </View>
           </View>
+
+          <View style={styles.inputContainer}>
+            <Text style={[styles.inputLabel, { color: Colors[isDarkMode ? 'dark' : 'light'].text }]}>
+              Title *
+            </Text>
+            <TextInput
+              style={[styles.input, { 
+                backgroundColor: Colors[isDarkMode ? 'dark' : 'light'].background,
+                borderColor: Colors[isDarkMode ? 'dark' : 'light'].icon + '30',
+                color: Colors[isDarkMode ? 'dark' : 'light'].text,
+              }]}
+              placeholder="Enter budget title"
+              placeholderTextColor={Colors[isDarkMode ? 'dark' : 'light'].icon}
+              value={newBudget.title}
+              onChangeText={(text) => setNewBudget({ ...newBudget, title: text })}
+            />
+          </View>
+
+          <View style={styles.inputContainer}>
+            <Text style={[styles.inputLabel, { color: Colors[isDarkMode ? 'dark' : 'light'].text }]}>
+              Start Date *
+            </Text>
+            <TextInput
+              style={[styles.input, { 
+                backgroundColor: Colors[isDarkMode ? 'dark' : 'light'].background,
+                borderColor: Colors[isDarkMode ? 'dark' : 'light'].icon + '30',
+                color: Colors[isDarkMode ? 'dark' : 'light'].text,
+              }]}
+              placeholder="YYYY-MM-DD"
+              placeholderTextColor={Colors[isDarkMode ? 'dark' : 'light'].icon}
+              value={newBudget.startDate}
+              onChangeText={(text) => setNewBudget({ ...newBudget, startDate: text })}
+            />
+          </View>
+
+          <View style={styles.inputContainer}>
+            <Text style={[styles.inputLabel, { color: Colors[isDarkMode ? 'dark' : 'light'].text }]}>
+              End Date *
+            </Text>
+            <TextInput
+              style={[styles.input, { 
+                backgroundColor: Colors[isDarkMode ? 'dark' : 'light'].background,
+                borderColor: Colors[isDarkMode ? 'dark' : 'light'].icon + '30',
+                color: Colors[isDarkMode ? 'dark' : 'light'].text,
+              }]}
+              placeholder="YYYY-MM-DD"
+              placeholderTextColor={Colors[isDarkMode ? 'dark' : 'light'].icon}
+              value={newBudget.endDate}
+              onChangeText={(text) => setNewBudget({ ...newBudget, endDate: text })}
+            />
+          </View>
         </ScrollView>
       </SafeAreaView>
     </Modal>
   );
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await loadData();
+    setRefreshing(false);
+  };
 
   if (loading) {
     return (
@@ -388,7 +563,18 @@ export default function BudgetScreen() {
         </TouchableOpacity>
       </View>
 
-      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        style={styles.scrollView}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={[Colors[isDarkMode ? 'dark' : 'light'].tint]}
+            tintColor={Colors[isDarkMode ? 'dark' : 'light'].tint}
+          />
+        }
+      >
         {/* Monthly Overview */}
         <View style={[styles.overviewCard, { backgroundColor: Colors[isDarkMode ? 'dark' : 'light'].background, borderColor: Colors[isDarkMode ? 'dark' : 'light'].icon + '20' }]}>
           <Text style={[styles.overviewTitle, { color: Colors[isDarkMode ? 'dark' : 'light'].text }]}>

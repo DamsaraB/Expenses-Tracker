@@ -1,6 +1,7 @@
 import { Stack } from 'expo-router';
 import { useEffect } from 'react';
 import { UserProvider } from './context/UserContext';
+import { apiClient } from './services/api/api'; // Import your API client
 import { initDatabase, resetDatabase } from './services/database';
 
 export default function RootLayout() {
@@ -21,6 +22,9 @@ export default function RootLayout() {
     };
 
     setupDatabase();
+
+    // Load API token at startup
+    apiClient.initToken();
   }, []);
 
   return (
