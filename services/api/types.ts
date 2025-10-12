@@ -127,6 +127,7 @@ export interface BudgetCreate {
   start_date: string;
   end_date: string;
   alert_threshold?: number;
+  title?: string; // <-- Add this line
 }
 
 export interface BudgetUpdate {
@@ -139,6 +140,10 @@ export interface BudgetUpdate {
 }
 
 export interface BudgetResponse {
+  spent_amount: number;
+  title: string;
+  spent: number;
+  server_id: number;
   id: number;
   user_id: number;
   category_id: number;

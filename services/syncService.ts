@@ -40,6 +40,11 @@ export class SyncService {
     }>;
 
     for (const expense of pendingExpenses) {
+      // Skip if category_id is invalid (0 or undefined)
+      if (!expense.category_id || expense.category_id === 0) {
+        console.warn('Skipping expense with invalid category_id:', expense.id, expense.category_id);
+        continue;
+      }
       try {
         if (expense.sync_status === 'pending') {
           // Create on backend

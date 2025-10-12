@@ -1,6 +1,7 @@
 import { db } from './database';
 
 export interface Budget {
+  server_id: any;
   id: number;
   category_id: number;
   category_name: string;
@@ -11,6 +12,7 @@ export interface Budget {
   end_date: string;
   spent?: number;
   user_id: number;
+  title: string; // <-- Add this line
 }
 
 // Add budget
@@ -19,6 +21,7 @@ export const addBudget = (
   categoryId: number,
   amount: number,
   period: string = 'monthly',
+  title: string, // <-- Add this parameter
   startDate?: string,
   endDate?: string
 ) => {
@@ -29,8 +32,8 @@ export const addBudget = (
     const end = endDate || new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split('T')[0];
     
     const result = db.runSync(
-      'INSERT INTO budgets (user_id, category_id, amount, period, start_date, end_date) VALUES (?, ?, ?, ?, ?, ?)',
-      [userId, categoryId, amount, period, start, end]
+      'INSERT INTO budgets (user_id, category_id, amount, period, title, start_date, end_date) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      [userId, categoryId, amount, period, title, start, end] // <-- Add title here
     );
     
     return { success: true, budgetId: result.lastInsertRowId };
@@ -51,6 +54,7 @@ export const getUserBudgets = (userId: number): Budget[] => {
         c.icon as category_icon,
         b.amount,
         b.period,
+        b.title,         -- <-- Add this line
         b.start_date,
         b.end_date,
         COALESCE(SUM(e.amount), 0) as spent,
@@ -61,10 +65,9 @@ export const getUserBudgets = (userId: number): Budget[] => {
         AND e.user_id = b.user_id 
         AND e.expense_date BETWEEN b.start_date AND b.end_date
       WHERE b.user_id = ? AND b.is_active = 1
-      GROUP BY b.id, b.category_id, c.name, c.icon, b.amount, b.period, b.start_date, b.end_date, b.user_id
+      GROUP BY b.id, b.category_id, c.name, c.icon, b.amount, b.period, b.title, b.start_date, b.end_date, b.user_id
       ORDER BY b.created_at DESC
     `;
-    
     const result = db.getAllSync(query, [userId]) as Budget[];
     return result || [];
   } catch (error) {
