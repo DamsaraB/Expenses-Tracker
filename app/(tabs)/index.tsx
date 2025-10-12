@@ -155,9 +155,17 @@ export default function HomeScreen() {
             <Text style={styles.greeting}>Hello, {user?.name || 'User'}!</Text>
             <Text style={styles.title}>Personal Finance</Text>
           </View>
-          <TouchableOpacity style={styles.notificationButton}>
-            <Ionicons name="notifications-outline" size={24} color="#666" />
-          </TouchableOpacity>
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <TouchableOpacity style={styles.notificationButton}>
+              <Ionicons name="notifications-outline" size={24} color="#666" />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={{ marginLeft: 12, padding: 8, backgroundColor: '#007AFF', borderRadius: 8 }}
+              onPress={() => router.push('/debug')}
+            >
+              <Ionicons name="bug-outline" size={20} color="#fff" />
+            </TouchableOpacity>
+          </View>
         </View>
 
         {/* Salary Card */}
@@ -263,7 +271,7 @@ export default function HomeScreen() {
               style={styles.actionButton}
               onPress={() => handleQuickAction('Add Savings Goal')}
             >
-              <Ionicons name="target" size={32} color="#FF9800" />
+              <Ionicons name="rocket-outline" size={32} color="#FF9800" />
               <Text style={styles.actionText}>Savings Goal</Text>
             </TouchableOpacity>
 
