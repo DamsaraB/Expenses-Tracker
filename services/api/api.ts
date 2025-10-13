@@ -39,12 +39,11 @@ import {
   TokenResponse,
   UserResponse,
 } from './types';
-import { SQLiteBindValue } from 'expo-sqlite';
 
 // Base URL Configuration
 const BASE_URL = __DEV__ 
-  ? 'http://192.168.1.9:8000' 
-  : 'http://172.25.197.193:8000';
+  ? 'http://129.154.41.196:8000' 
+  : 'http://129.154.41.196:8000';
 
 // Token storage keys
 const TOKEN_KEY = 'auth_token';
