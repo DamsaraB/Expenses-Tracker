@@ -197,7 +197,7 @@ export interface IncomeResponse {
   source: string;
   description?: string;
   income_date: string;
-  is_recurring: boolean;
+  is_recurring?: boolean;
   recurring_frequency?: string;
   created_at: string;
   updated_at: string;

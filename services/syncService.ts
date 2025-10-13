@@ -1,4 +1,4 @@
-import { authApi, budgetsApi, categoriesApi, expensesApi, savingsGoalsApi, savingsTransactionsApi } from './api/api';
+import { authApi, budgetsApi, categoriesApi, expensesApi, incomeApi, savingsGoalsApi, savingsTransactionsApi } from './api/api';
 import { syncStorage } from './api/storage';
 import { db } from './database';
 
@@ -16,6 +16,7 @@ export class SyncService {
       await this.pushPendingUserUpdates(); // Add user sync
       await this.pushPendingSavingsGoals();
       await this.pushPendingSavingsTransactions();
+      await this.pushPendingIncomeUpdates(); // Add this
       
       // 2. Pull server updates
       await this.pullCategoryUpdates(); // <-- ADD THIS
@@ -23,6 +24,7 @@ export class SyncService {
       await this.pullUserUpdates(); // Add user sync
       await this.pullSavingsGoalsUpdates();
       await this.pullSavingsTransactionsUpdates();
+      await this.pullIncomeUpdates(); // Add this
       
       // 3. Update last sync timestamp
       await syncStorage.saveLastSync(Date.now());
@@ -578,6 +580,111 @@ export class SyncService {
       console.error('Error syncing budgets:', error);
     }
   }
+
+  // INCOME SYNC METHODS
+  private async pushPendingIncomeUpdates() {
+    const pendingIncome = db.getAllSync(
+      'SELECT * FROM income WHERE sync_status IN ("pending", "modified")'
+    ) as Array<{
+      id: number;
+      server_id?: number;
+      title: string;
+      amount: number;
+      source: string;
+      description?: string;
+      income_date: string;
+      is_recurring: boolean;
+      recurring_frequency?: string;
+      sync_status: string;
+    }>;
+
+    for (const income of pendingIncome) {
+      try {
+        if (income.sync_status === 'pending') {
+          const result = await incomeApi.create({
+            title: income.title,
+            amount: income.amount,
+            source: income.source,
+            description: income.description,
+            income_date: income.income_date,
+            is_recurring: income.is_recurring,
+            recurring_frequency: income.recurring_frequency,
+          });
+          // Update with server_id after successful creation
+          db.runSync(
+            'UPDATE income SET server_id = ?, sync_status = "synced" WHERE id = ?',
+            [result.id, income.id] // Assuming the create response includes the ID
+          );
+        } else if (income.sync_status === 'modified' && income.server_id) {
+          await incomeApi.update(income.server_id, {
+            title: income.title,
+            amount: income.amount,
+            source: income.source,
+            description: income.description,
+            income_date: income.income_date,
+            is_recurring: income.is_recurring,
+            recurring_frequency: income.recurring_frequency,
+          });
+          db.runSync(
+            'UPDATE income SET sync_status = "synced" WHERE id = ?',
+            [income.id]
+          );
+        }
+      } catch (error) {
+        console.error('Error syncing income:', income.id, error);
+      }
+    }
+  }
+
+  // ...existing code...
+
+private async pullIncomeUpdates() {
+  try {
+    const serverIncome = await incomeApi.list();
+
+    for (const income of serverIncome) {
+      const localIncome = db.getFirstSync(
+        'SELECT * FROM income WHERE server_id = ?',
+        [income.id]
+      );
+
+      if (localIncome) {
+        // Update existing
+        db.runSync(
+          'UPDATE income SET title = ?, amount = ?, source = ?, description = ?, income_date = ?, is_recurring = ?, recurring_frequency = ?, sync_status = "synced" WHERE server_id = ?',
+          [
+            income.title ?? '',
+            income.amount ?? 0,
+            income.source ?? '',
+            income.description ?? '',
+            income.income_date ?? new Date().toISOString().split('T')[0],
+            income.is_recurring ? 1 : 0,
+            income.recurring_frequency ?? '',
+            income.id ?? 0,
+          ]
+        );
+      } else {
+        // Insert new - Fix undefined values
+        db.runSync(
+          'INSERT INTO income (user_id, title, amount, source, description, income_date, is_recurring, recurring_frequency, server_id, sync_status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, "synced")',
+          [
+            income.user_id ?? 0,                    // Fix: provide default for user_id
+            income.title ?? '',                     // Fix: provide default for title
+            income.amount ?? 0,                     // Fix: provide default for amount
+            income.source ?? '',                    // Fix: provide default for source
+            income.description ?? '',               // Fix: provide default for description
+            income.income_date ?? new Date().toISOString().split('T')[0], // Fix: provide default date
+            income.is_recurring ? 1 : 0,           // Fix: convert boolean to number
+            income.recurring_frequency ?? '',       // Fix: provide default for frequency
+            income.id ?? 0,                        // Fix: provide default for server_id
+          ]
+        );
+      }
+    }
+  } catch (error) {
+    console.error('Error pulling income updates:', error);
+  }
+}
 }
 
 export const syncService = new SyncService();

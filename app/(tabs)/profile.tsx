@@ -124,6 +124,10 @@ export default function ProfileScreen() {
     setShowSalaryModal(true);
   };
 
+  const handleIncomeManagement = () => {
+    router.push('/profile/income');
+  };
+
   const handleSalarySave = async () => {
     if (!monthlySalary || isNaN(parseFloat(monthlySalary))) {
       Alert.alert('Error', 'Please enter a valid salary amount');
@@ -186,6 +190,12 @@ export default function ProfileScreen() {
       title: 'Edit Profile',
       icon: 'person-outline',
       onPress: handleEditProfile,
+    },
+    {
+      title: 'Income Management',
+      icon: 'trending-up-outline',
+      onPress: handleIncomeManagement,
+      subtitle: 'Manage your income sources',
     },
     {
       title: 'Monthly Salary',

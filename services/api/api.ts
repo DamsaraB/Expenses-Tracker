@@ -39,6 +39,7 @@ import {
   TokenResponse,
   UserResponse,
 } from './types';
+import { SQLiteBindValue } from 'expo-sqlite';
 
 // Base URL Configuration
 const BASE_URL = __DEV__ 
@@ -324,7 +325,20 @@ export const budgetsApi = {
 
 // ==================== INCOME APIs ====================
 export const incomeApi = {
-  create: async (data: IncomeCreate): Promise<{ message: string }> => {
+  list: async (params?: {
+    skip?: number;
+    limit?: number;
+    start_date?: string;
+    end_date?: string;
+  }): Promise<IncomeResponse[]> => {
+    return apiClient.request({
+      method: 'GET',
+      url: '/api/income/',
+      params,
+    });
+  },
+
+  create: async (data: IncomeCreate): Promise<IncomeResponse> => {
     return apiClient.request({
       method: 'POST',
       url: '/api/income/',
