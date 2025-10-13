@@ -562,7 +562,7 @@ export default function BudgetScreen() {
       <View style={styles.header}>
         <Text style={[styles.title, { color: Colors[isDarkMode ? 'dark' : 'light'].text }]}>Budget</Text>
         <TouchableOpacity
-          style={styles.addButton}
+          style={[styles.addButton, { backgroundColor: Colors[isDarkMode ? 'dark' : 'light'].tint }]}
           onPress={() => setShowAddModal(true)}
         >
           <Ionicons name="add" size={24} color="#fff" />
