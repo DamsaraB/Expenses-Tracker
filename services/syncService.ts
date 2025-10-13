@@ -37,6 +37,7 @@ export class SyncService {
     ) as Array<{
       id: number;
       name?: string;
+      email?: string;
       monthly_income?: number;
       currency?: string;
       profile_image?: string;
@@ -45,6 +46,22 @@ export class SyncService {
 
     for (const user of pendingUsers) {
       try {
+         // Only send non-null values to avoid Oracle constraints
+      const updateData: any = {};
+      
+      if (user.name) {
+        updateData.name = user.name;
+      }
+      if (user.monthly_income !== null && user.monthly_income !== undefined) {
+        updateData.monthly_income = user.monthly_income;
+      }
+      if (user.currency) {
+        updateData.currency = user.currency;
+      }
+      if (user.profile_image) {
+        updateData.profile_image = user.profile_image;
+      }
+
         // Push update to backend
         await authApi.updateProfile({
           name: user.name,
@@ -58,6 +75,8 @@ export class SyncService {
           'UPDATE users SET sync_status = "synced", updated_at = CURRENT_TIMESTAMP WHERE id = ?',
           [user.id]
         );
+
+        console.log('User profile synced successfully:', user.id);
       } catch (error) {
         console.error('Sync error for user:', user.id, error);
       }
@@ -87,6 +106,7 @@ export class SyncService {
             serverUser.id,
           ]
         );
+        console.log('User profile pulled from server successfully');
       }
     } catch (error) {
       console.error('Error syncing user profile:', error);

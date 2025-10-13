@@ -323,6 +323,7 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    paddingTop: 40,
     backgroundColor: '#f8f9fa',
   },
   loadingContainer: {

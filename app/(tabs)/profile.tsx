@@ -1,3 +1,4 @@
+import { authApi } from '@/services/api/api';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
@@ -17,7 +18,7 @@ import {
 import { Colors } from '../../constants/theme';
 import { useTheme } from '../../context/ThemeContext';
 import { useUser } from '../../context/UserContext';
-import { updateUserMonthlyIncome, updateUserProfileImage } from '../../services/database';
+import { updateUserProfile } from '../../services/database';
 
 export default function ProfileScreen() {
   const { user, logout, setUser } = useUser();
@@ -103,27 +104,54 @@ export default function ProfileScreen() {
   };
 
   const handleSalarySave = async () => {
-    if (!monthlySalary || isNaN(parseFloat(monthlySalary))) {
-      Alert.alert('Error', 'Please enter a valid salary amount');
-      return;
-    }
+  if (!monthlySalary || isNaN(parseFloat(monthlySalary))) {
+    Alert.alert('Error', 'Please enter a valid salary amount');
+    return;
+  }
 
-    try {
-      if (!user) return;
-      const amount = parseFloat(monthlySalary);
-      const result = await updateUserMonthlyIncome(user.id, amount);
-      if (result.success) {
-        // Update user in context so dashboard reflects new salary
-        setUser(result.user);
-        Alert.alert('Success', 'Monthly salary updated successfully!');
-        setShowSalaryModal(false);
-      } else {
-        Alert.alert('Error', result.error || 'Failed to update salary');
+  try {
+    if (!user) return;
+    
+    const amount = parseFloat(monthlySalary);
+    
+    // Update LOCAL database first (local-first approach)
+    const localResult = await updateUserProfile(user.id, {
+      monthly_income: amount
+    });
+    
+    if (localResult.success) {
+      // Update user context immediately for UI
+      const updatedUser = {
+        ...user,
+        monthly_income: amount,
+      };
+      setUser(updatedUser);
+      
+      // Show success and close modal
+      Alert.alert('Success', 'Monthly salary updated successfully!');
+      setShowSalaryModal(false);
+      
+      // Sync with backend in background (like other features)
+      try {
+        await authApi.updateProfile({
+          name: user.name,
+          monthly_income: amount,
+          currency: (user as any)?.currency || 'INR',
+        });
+        console.log('Salary synced with backend successfully');
+      } catch (syncError) {
+        console.error('Backend sync failed (continuing with local update):', syncError);
+        // Don't show error to user - local update was successful
       }
-    } catch (e) {
-      Alert.alert('Error', 'Failed to update salary');
+      
+    } else {
+      Alert.alert('Error', localResult.error || 'Failed to update salary');
     }
-  };
+  } catch (error) {
+    console.error('Salary update error:', error);
+    Alert.alert('Error', 'Failed to update salary');
+  }
+};
 
   const formatCurrency = (amount: number) => {
     // Use Indian locale and currency. Hermes supports 'INR'.
