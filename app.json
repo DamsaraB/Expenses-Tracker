@@ -47,8 +47,9 @@
         }
       ]
     ],
-     "assetBundlePatterns": ["**/*"],
-     
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
@@ -58,6 +59,12 @@
       "eas": {
         "projectId": "0b184ee6-248c-4604-81ed-5c57c2ef1b07"
       }
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/0b184ee6-248c-4604-81ed-5c57c2ef1b07"
     }
   }
 }
