@@ -1,28 +1,28 @@
 import { Ionicons } from '@expo/vector-icons';
 import React, { useEffect, useState } from 'react';
 import {
-    Alert,
-    FlatList,
-    Modal,
-    SafeAreaView,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  Alert,
+  FlatList,
+  Modal,
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import { Colors } from '../../constants/theme';
 import { useTheme } from '../../context/ThemeContext';
 import { useUser } from '../../context/UserContext';
 import {
-    addMoneyToGoal,
-    addSavingsGoal,
-    deleteSavingsGoal,
-    getSavingsSummary,
-    getUserSavingsGoals,
-    SavingsGoal,
-    updateSavingsGoal
+  addMoneyToGoal,
+  addSavingsGoal,
+  deleteSavingsGoal,
+  getSavingsSummary,
+  getUserSavingsGoals,
+  SavingsGoal,
+  updateSavingsGoal
 } from '../../services/savingsService';
 
 export default function SavingsScreen() {
@@ -75,7 +75,7 @@ export default function SavingsScreen() {
     try {
       return new Intl.NumberFormat('en-IN', {
         style: 'currency',
-        currency: 'INR',
+        currency: 'Rs',
         maximumFractionDigits: 2,
       }).format(amount);
     } catch {

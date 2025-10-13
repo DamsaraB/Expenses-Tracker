@@ -3,6 +3,20 @@ import * as SQLite from 'expo-sqlite';
 
 const db = SQLite.openDatabaseSync('expenseTracker_v2.db');
 
+let __dbInitialized = false;
+
+const ensureDatabaseInitialized = () => {
+  if (__dbInitialized) return;
+  try {
+    initDatabase();
+    __dbInitialized = true;
+  } catch (e) {
+    console.error('Failed to initialize database on module load:', e);
+  }
+};
+
+// (moved) ensureDatabaseInitialized() will be invoked after function declarations
+
 // Add this function to drop and recreate database
 export const resetDatabase = () => {
   try {
@@ -42,12 +56,24 @@ export const initDatabase = () => {
         email TEXT UNIQUE NOT NULL,
         password TEXT NOT NULL,
         profile_image TEXT,
+        phone TEXT,
         monthly_income REAL DEFAULT 0,
         currency TEXT DEFAULT 'INR',
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
       );
     `);
+
+    // Backfill/migrate: add phone column if not present on existing DBs
+    try {
+      const cols = db.getAllSync("PRAGMA table_info('users')") as any[];
+      const hasPhone = cols?.some((c) => c?.name === 'phone');
+      if (!hasPhone) {
+        db.execSync('ALTER TABLE users ADD COLUMN phone TEXT;');
+      }
+    } catch (e) {
+      // ignore if fails; column may already exist
+    }
 
     // Expense Categories table
     db.execSync(`
@@ -169,6 +195,9 @@ export const initDatabase = () => {
     throw error;
   }
 };
+
+// Initialize immediately on module import to avoid race conditions
+ensureDatabaseInitialized();
 
 // Hash password function
 const hashPassword = async (password: string): Promise<string> => {
@@ -300,7 +329,7 @@ export const loginUser = async (email: string, password: string) => {
     console.log('Password hashed, querying database...');
     
     const result = db.getFirstSync(
-      'SELECT id, name, email, monthly_income, currency FROM users WHERE email = ? AND password = ?',
+      'SELECT id, name, email, phone, profile_image, monthly_income, currency FROM users WHERE email = ? AND password = ?',
       [email.toLowerCase(), hashedPassword]
     ) as any;
     
@@ -326,7 +355,7 @@ export const getUserById = async (userId: number) => {
     console.log('Getting user by ID:', userId);
     
     const result = db.getFirstSync(
-      'SELECT id, name, email, monthly_income, currency FROM users WHERE id = ?',
+      'SELECT id, name, email, phone, profile_image, monthly_income, currency FROM users WHERE id = ?',
       [userId]
     ) as any;
     
@@ -353,6 +382,74 @@ export const updateUserMonthlyIncome = async (userId: number, monthlyIncome: num
   } catch (error) {
     console.error('Update monthly income error:', error);
     return { success: false, error: 'Failed to update monthly income' };
+  }
+};
+
+// Update user's name, email, and optional phone
+export const updateUserProfile = async (userId: number, name: string, email: string, phone?: string) => {
+  try {
+    db.runSync(
+      'UPDATE users SET name = ?, email = ?, phone = COALESCE(?, phone), updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+      [name, email.toLowerCase(), phone ?? null, userId]
+    );
+    const updated = db.getFirstSync(
+      'SELECT id, name, email, phone, profile_image, monthly_income, currency FROM users WHERE id = ?',
+      [userId]
+    ) as any;
+    return { success: true, user: updated };
+  } catch (error) {
+    console.error('Update user profile error:', error);
+    return { success: false, error: 'Failed to update profile' };
+  }
+};
+
+// Update user's profile image URI
+export const updateUserProfileImage = async (userId: number, imageUri: string) => {
+  try {
+    db.runSync(
+      'UPDATE users SET profile_image = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+      [imageUri, userId]
+    );
+    const updated = db.getFirstSync(
+      'SELECT id, name, email, monthly_income, currency, profile_image FROM users WHERE id = ?',
+      [userId]
+    ) as any;
+    return { success: true, user: updated };
+  } catch (error) {
+    console.error('Update profile image error:', error);
+    return { success: false, error: 'Failed to update profile image' };
+  }
+};
+
+// Get total expenses for a given month (YYYY-MM)
+export const getMonthlyExpensesTotal = (userId: number, yearMonth: string) => {
+  try {
+    const result = db.getFirstSync(
+      `SELECT IFNULL(SUM(amount), 0) AS total
+       FROM expenses
+       WHERE user_id = ? AND date LIKE ?`,
+      [userId, `${yearMonth}%`]
+    ) as { total: number } | undefined;
+    return result?.total || 0;
+  } catch (error) {
+    console.error('Get monthly expenses total error:', error);
+    return 0;
+  }
+};
+
+// Compute remaining salary for a given month using user's monthly_income
+export const getMonthlyRemainingSalary = (userId: number, yearMonth: string) => {
+  try {
+    const user = db.getFirstSync(
+      'SELECT monthly_income FROM users WHERE id = ?',
+      [userId]
+    ) as { monthly_income: number } | undefined;
+    const income = user?.monthly_income || 0;
+    const spent = getMonthlyExpensesTotal(userId, yearMonth);
+    return income - spent;
+  } catch (error) {
+    console.error('Get monthly remaining salary error:', error);
+    return 0;
   }
 };
 

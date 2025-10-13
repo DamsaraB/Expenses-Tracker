@@ -6,7 +6,8 @@ interface User {
   id: number;
   name: string;
   email: string;
-  monthly_income?: number; // Monthly income for budget planning
+  monthly_income?: number;
+  profile_image?: string;
 }
 
 interface UserContextType {
