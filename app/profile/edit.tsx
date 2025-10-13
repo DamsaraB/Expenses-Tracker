@@ -16,13 +16,14 @@ import {
 import { Colors } from '../../constants/theme';
 import { useTheme } from '../../context/ThemeContext';
 import { useUser } from '../../context/UserContext';
+import { authApi } from '../../services/api/api'; // <-- Import your API client
 import { updateUserProfile } from '../../services/database';
 
 export default function EditProfileScreen() {
   const { user, setUser } = useUser();
   const { isDarkMode } = useTheme();
   const router = useRouter();
-  
+
   const [formData, setFormData] = useState({
     name: user?.name || '',
     email: user?.email || '',
@@ -45,18 +46,34 @@ export default function EditProfileScreen() {
 
     setLoading(true);
     try {
-      const result = await updateUserProfile(
-        (user as any)?.id,
-        formData.name.trim(),
-        formData.email.trim(),
-        formData.phone?.trim() || undefined
-      );
-      if (result.success) {
-        setUser(result.user);
+      // Prepare update data
+      const updateData: any = {
+        name: formData.name.trim(),
+        currency: formData.currency,
+      };
+
+      if (formData.monthly_income.trim()) {
+        const income = parseFloat(formData.monthly_income);
+        if (!isNaN(income)) {
+          updateData.monthly_income = income;
+        }
+      }
+
+      // Update local database
+      const localResult = updateUserProfile(user.id, updateData);
+
+      // Update backend
+      const backendResult = await authApi.updateProfile(updateData);
+
+      if (localResult.success && backendResult) {
+        // Update user context with backend result (latest data)
+        setUser(backendResult);
+
+        Alert.alert('Success', 'Profile updated successfully!', [
+          { text: 'OK', onPress: () => router.back() }
+        ]);
       } else {
-        Alert.alert('Error', result.error || 'Failed to update profile');
-        setLoading(false);
-        return;
+        Alert.alert('Error', localResult.error || 'Failed to update profile');
       }
       Alert.alert('Success', 'Profile updated successfully!', [
         { text: 'OK', onPress: () => router.back() }
@@ -75,8 +92,8 @@ export default function EditProfileScreen() {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: Colors[isDarkMode ? 'dark' : 'light'].background }]}>
-      <KeyboardAvoidingView 
-        style={styles.keyboardAvoid} 
+      <KeyboardAvoidingView
+        style={styles.keyboardAvoid}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
         {/* Header */}
@@ -116,7 +133,7 @@ export default function EditProfileScreen() {
                 Full Name
               </Text>
               <TextInput
-                style={[styles.input, { 
+                style={[styles.input, {
                   backgroundColor: Colors[isDarkMode ? 'dark' : 'light'].background,
                   borderColor: Colors[isDarkMode ? 'dark' : 'light'].icon + '30',
                   color: Colors[isDarkMode ? 'dark' : 'light'].text,
@@ -134,7 +151,7 @@ export default function EditProfileScreen() {
                 Email Address (Read Only)
               </Text>
               <TextInput
-                style={[styles.input, { 
+                style={[styles.input, {
                   backgroundColor: Colors[isDarkMode ? 'dark' : 'light'].icon + '10',
                   borderColor: Colors[isDarkMode ? 'dark' : 'light'].icon + '30',
                   color: Colors[isDarkMode ? 'dark' : 'light'].icon,
@@ -142,7 +159,7 @@ export default function EditProfileScreen() {
                 value={formData.email}
                 placeholder="Enter your email address"
                 placeholderTextColor={Colors[isDarkMode ? 'dark' : 'light'].icon}
-                editable={false} // Make email read-only
+                editable={false}
               />
             </View>
 
@@ -151,7 +168,7 @@ export default function EditProfileScreen() {
                 Monthly Income (Optional)
               </Text>
               <TextInput
-                style={[styles.input, { 
+                style={[styles.input, {
                   backgroundColor: Colors[isDarkMode ? 'dark' : 'light'].background,
                   borderColor: Colors[isDarkMode ? 'dark' : 'light'].icon + '30',
                   color: Colors[isDarkMode ? 'dark' : 'light'].text,
@@ -169,7 +186,7 @@ export default function EditProfileScreen() {
                 Currency
               </Text>
               <TextInput
-                style={[styles.input, { 
+                style={[styles.input, {
                   backgroundColor: Colors[isDarkMode ? 'dark' : 'light'].background,
                   borderColor: Colors[isDarkMode ? 'dark' : 'light'].icon + '30',
                   color: Colors[isDarkMode ? 'dark' : 'light'].text,
@@ -190,25 +207,25 @@ export default function EditProfileScreen() {
             <Text style={[styles.sectionTitle, { color: Colors[isDarkMode ? 'dark' : 'light'].text }]}>
               Security
             </Text>
-            
-            <TouchableOpacity 
+
+            <TouchableOpacity
               style={[styles.settingItem, { backgroundColor: Colors[isDarkMode ? 'dark' : 'light'].background, borderColor: Colors[isDarkMode ? 'dark' : 'light'].icon + '20' }]}
               onPress={() => Alert.alert('Coming Soon', 'Password change feature will be available soon.')}
             >
               <View style={styles.settingLeft}>
-                <Ionicons 
-                  name="lock-closed-outline" 
-                  size={24} 
-                  color={Colors[isDarkMode ? 'dark' : 'light'].tint} 
+                <Ionicons
+                  name="lock-closed-outline"
+                  size={24}
+                  color={Colors[isDarkMode ? 'dark' : 'light'].tint}
                 />
                 <Text style={[styles.settingText, { color: Colors[isDarkMode ? 'dark' : 'light'].text }]}>
                   Change Password
                 </Text>
               </View>
-              <Ionicons 
-                name="chevron-forward" 
-                size={20} 
-                color={Colors[isDarkMode ? 'dark' : 'light'].icon} 
+              <Ionicons
+                name="chevron-forward"
+                size={20}
+                color={Colors[isDarkMode ? 'dark' : 'light'].icon}
               />
             </TouchableOpacity>
           </View>
@@ -221,6 +238,7 @@ export default function EditProfileScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    paddingTop: 40,
   },
   keyboardAvoid: {
     flex: 1,

@@ -3,6 +3,7 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import { getUserById } from '../services/database';
 
 interface User {
+  currency: string;
   id: number;
   name: string;
   email: string;
@@ -33,7 +34,7 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (userId) {
         const userData = await getUserById(parseInt(userId));
         if (userData) {
-          setUser(userData);
+          setUser(userData as User);
         }
       }
     } catch (error) {

@@ -1,12 +1,11 @@
 import { authApi } from '@/services/api/api';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Alert,
   Image,
   Modal,
-  SafeAreaView,
   ScrollView,
   StyleSheet,
   Switch,
@@ -15,6 +14,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Colors } from '../../constants/theme';
 import { useTheme } from '../../context/ThemeContext';
 import { useUser } from '../../context/UserContext';
@@ -24,8 +24,28 @@ export default function ProfileScreen() {
   const { user, logout, setUser } = useUser();
   const { isDarkMode, toggleTheme } = useTheme();
   const router = useRouter();
-  
+
   const [showSalaryModal, setShowSalaryModal] = useState(false);
+  const [monthlySalary, setMonthlySalary] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  // Fetch user profile from backend
+  const fetchUserProfile = async () => {
+    try {
+      setLoading(true);
+      const remoteUser = await authApi.getCurrentUser();
+      setUser(remoteUser);
+      setMonthlySalary(remoteUser.monthly_income ? remoteUser.monthly_income.toString() : '');
+    } catch (error) {
+      console.error('Failed to fetch user profile:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchUserProfile();
+  }, []);
   const [monthlySalary, setMonthlySalary] = useState((user as any)?.monthly_income?.toString() || '');
   const [isPicking, setIsPicking] = useState(false);
 
@@ -100,69 +120,63 @@ export default function ProfileScreen() {
   };
 
   const handleSalaryUpdate = () => {
+    setMonthlySalary(user?.monthly_income ? user.monthly_income.toString() : '');
     setShowSalaryModal(true);
   };
 
   const handleSalarySave = async () => {
-  if (!monthlySalary || isNaN(parseFloat(monthlySalary))) {
-    Alert.alert('Error', 'Please enter a valid salary amount');
-    return;
-  }
+    if (!monthlySalary || isNaN(parseFloat(monthlySalary))) {
+      Alert.alert('Error', 'Please enter a valid salary amount');
+      return;
+    }
 
-  try {
-    if (!user) return;
-    
-    const amount = parseFloat(monthlySalary);
-    
-    // Update LOCAL database first (local-first approach)
-    const localResult = await updateUserProfile(user.id, {
-      monthly_income: amount
-    });
-    
-    if (localResult.success) {
-      // Update user context immediately for UI
-      const updatedUser = {
-        ...user,
+    try {
+      if (!user) return;
+
+      const amount = parseFloat(monthlySalary);
+
+      // Update LOCAL database first
+      const localResult = await updateUserProfile(user.id, {
         monthly_income: amount,
-      };
-      setUser(updatedUser);
-      
-      // Show success and close modal
-      Alert.alert('Success', 'Monthly salary updated successfully!');
-      setShowSalaryModal(false);
-      
-      // Sync with backend in background (like other features)
-      try {
+      });
+
+      if (localResult.success) {
+        // Update user context immediately for UI
+        const updatedUser = {
+          ...user,
+          monthly_income: amount,
+        };
+        setUser(updatedUser);
+
+        // Sync with backend
         await authApi.updateProfile({
           name: user.name,
           monthly_income: amount,
-          currency: (user as any)?.currency || 'INR',
+          currency: user.currency || 'INR',
         });
-        console.log('Salary synced with backend successfully');
-      } catch (syncError) {
-        console.error('Backend sync failed (continuing with local update):', syncError);
-        // Don't show error to user - local update was successful
+
+        // Fetch latest user profile from backend
+        await fetchUserProfile();
+
+        Alert.alert('Success', 'Monthly salary updated successfully!');
+        setShowSalaryModal(false);
+      } else {
+        Alert.alert('Error', localResult.error || 'Failed to update salary');
       }
-      
-    } else {
-      Alert.alert('Error', localResult.error || 'Failed to update salary');
+    } catch (error) {
+      console.error('Salary update error:', error);
+      Alert.alert('Error', 'Failed to update salary');
     }
-  } catch (error) {
-    console.error('Salary update error:', error);
-    Alert.alert('Error', 'Failed to update salary');
-  }
-};
+  };
 
   const formatCurrency = (amount: number) => {
-    // Use Indian locale and currency. Hermes supports 'INR'.
     try {
       return new Intl.NumberFormat('en-IN', {
         style: 'currency',
-        currency: 'Rs',
+        currency: 'INR',
         maximumFractionDigits: 2,
       }).format(amount);
     } catch {
-      // Fallback: manually prefix with Rs. if Intl fails
       return `Rs. ${Number(amount || 0).toLocaleString('en-IN', { maximumFractionDigits: 2, minimumFractionDigits: 2 })}`;
     }
   };
@@ -177,7 +191,7 @@ export default function ProfileScreen() {
       title: 'Monthly Salary',
       icon: 'cash-outline',
       onPress: handleSalaryUpdate,
-      subtitle: (user as any)?.monthly_income ? formatCurrency((user as any).monthly_income) : 'Not set',
+      subtitle: user?.monthly_income ? formatCurrency(user.monthly_income) : 'Not set',
     },
     {
       title: 'Privacy Policy',
@@ -239,14 +253,13 @@ export default function ProfileScreen() {
           <Text style={[styles.sectionTitle, { color: Colors[isDarkMode ? 'dark' : 'light'].text }]}>
             Settings
           </Text>
-          
           {/* Dark Mode Toggle */}
           <View style={[styles.settingItem, { backgroundColor: Colors[isDarkMode ? 'dark' : 'light'].background, borderColor: Colors[isDarkMode ? 'dark' : 'light'].icon + '20' }]}>
             <View style={styles.settingLeft}>
-              <Ionicons 
-                name={isDarkMode ? "moon" : "sunny"} 
-                size={24} 
-                color={Colors[isDarkMode ? 'dark' : 'light'].tint} 
+              <Ionicons
+                name={isDarkMode ? "moon" : "sunny"}
+                size={24}
+                color={Colors[isDarkMode ? 'dark' : 'light'].tint}
               />
               <Text style={[styles.settingText, { color: Colors[isDarkMode ? 'dark' : 'light'].text }]}>
                 Dark Mode
@@ -266,7 +279,6 @@ export default function ProfileScreen() {
           <Text style={[styles.sectionTitle, { color: Colors[isDarkMode ? 'dark' : 'light'].text }]}>
             Profile Options
           </Text>
-          
           {profileItems.map((item, index) => (
             <TouchableOpacity
               key={index}
@@ -274,10 +286,10 @@ export default function ProfileScreen() {
               onPress={item.onPress}
             >
               <View style={styles.settingLeft}>
-                <Ionicons 
-                  name={item.icon as any} 
-                  size={24} 
-                  color={Colors[isDarkMode ? 'dark' : 'light'].tint} 
+                <Ionicons
+                  name={item.icon as any}
+                  size={24}
+                  color={Colors[isDarkMode ? 'dark' : 'light'].tint}
                 />
                 <View style={styles.settingTextContainer}>
                   <Text style={[styles.settingText, { color: Colors[isDarkMode ? 'dark' : 'light'].text }]}>
@@ -290,10 +302,10 @@ export default function ProfileScreen() {
                   )}
                 </View>
               </View>
-              <Ionicons 
-                name="chevron-forward" 
-                size={20} 
-                color={Colors[isDarkMode ? 'dark' : 'light'].icon} 
+              <Ionicons
+                name="chevron-forward"
+                size={20}
+                color={Colors[isDarkMode ? 'dark' : 'light'].icon}
               />
             </TouchableOpacity>
           ))}
@@ -326,7 +338,7 @@ export default function ProfileScreen() {
           <View style={[styles.modalHeader, { borderBottomColor: Colors[isDarkMode ? 'dark' : 'light'].icon + '20' }]}>
             <TouchableOpacity onPress={() => {
               setShowSalaryModal(false);
-              setMonthlySalary((user as any)?.monthly_income?.toString() || '');
+              setMonthlySalary(user?.monthly_income?.toString() || '');
             }}>
               <Text style={[styles.cancelButton, { color: Colors[isDarkMode ? 'dark' : 'light'].tint }]}>Cancel</Text>
             </TouchableOpacity>
@@ -344,7 +356,7 @@ export default function ProfileScreen() {
                 Monthly Salary *
               </Text>
               <TextInput
-                style={[styles.input, { 
+                style={[styles.input, {
                   backgroundColor: Colors[isDarkMode ? 'dark' : 'light'].background,
                   borderColor: Colors[isDarkMode ? 'dark' : 'light'].icon + '30',
                   color: Colors[isDarkMode ? 'dark' : 'light'].text,
@@ -378,6 +390,7 @@ export default function ProfileScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    paddingTop: 40,
   },
   scrollView: {
     flex: 1,
