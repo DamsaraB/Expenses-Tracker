@@ -1,4 +1,4 @@
-import { expensesApi, savingsGoalsApi, savingsTransactionsApi } from './api/api';
+import { authApi, budgetsApi, expensesApi, savingsGoalsApi, savingsTransactionsApi } from './api/api';
 import { syncStorage } from './api/storage';
 import { db } from './database';
 
@@ -12,11 +12,13 @@ export class SyncService {
     try {
       // 1. Push local changes to server
       await this.pushPendingChanges();
+      await this.pushPendingUserUpdates(); // Add user sync
       await this.pushPendingSavingsGoals();
       await this.pushPendingSavingsTransactions();
       
       // 2. Pull server updates
       await this.pullServerUpdates();
+      await this.pullUserUpdates(); // Add user sync
       await this.pullSavingsGoalsUpdates();
       await this.pullSavingsTransactionsUpdates();
       
@@ -25,6 +27,69 @@ export class SyncService {
       
     } finally {
       this.issyncing = false;
+    }
+  }
+
+  // USER PROFILE SYNC
+  private async pushPendingUserUpdates() {
+    const pendingUsers = db.getAllSync(
+      'SELECT * FROM users WHERE sync_status = "modified"'
+    ) as Array<{
+      id: number;
+      name?: string;
+      monthly_income?: number;
+      currency?: string;
+      profile_image?: string;
+      sync_status: string;
+    }>;
+
+    for (const user of pendingUsers) {
+      try {
+        // Push update to backend
+        await authApi.updateProfile({
+          name: user.name,
+          monthly_income: user.monthly_income,
+          currency: user.currency,
+          profile_image: user.profile_image,
+        });
+        
+        // Mark as synced
+        db.runSync(
+          'UPDATE users SET sync_status = "synced", updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+          [user.id]
+        );
+      } catch (error) {
+        console.error('Sync error for user:', user.id, error);
+      }
+    }
+  }
+
+  private async pullUserUpdates() {
+    try {
+      // Get current user data from server
+      const serverUser = await authApi.getCurrentUser();
+      
+      // Update local user with server data
+      const localUser = db.getFirstSync(
+        'SELECT * FROM users WHERE id = ?',
+        [serverUser.id]
+      );
+
+      if (localUser) {
+        db.runSync(
+          'UPDATE users SET name = ?, monthly_income = ?, currency = ?, profile_image = ?, sync_status = "synced", updated_at = ? WHERE id = ?',
+          [
+            serverUser.name ?? '',
+            serverUser.monthly_income ?? null,
+            serverUser.currency ?? 'USD',
+            serverUser.profile_image ?? null,
+            serverUser.updated_at ?? new Date().toISOString(),
+            serverUser.id,
+          ]
+        );
+      }
+    } catch (error) {
+      console.error('Error syncing user profile:', error);
     }
   }
 
@@ -87,46 +152,56 @@ export class SyncService {
     const lastSync = await syncStorage.getLastSync();
     const timestamp = lastSync ? new Date(lastSync).toISOString() : undefined;
 
-    // Get updated data from server
-    const serverExpenses = await expensesApi.list({ 
-      modified_since: timestamp 
-    });
+    try {
+      const serverExpenses = await expensesApi.list({
+        modified_since: timestamp
+      });
 
-    for (const serverExpense of serverExpenses) {
-      const localExpense = db.getFirstSync(
-        'SELECT * FROM expenses WHERE server_id = ?',
-        [serverExpense.id]
-      );
+      for (const serverExpense of serverExpenses) {
+        // ENSURE user_id is always provided
+        if (!serverExpense.user_id) {
+          console.warn('Skipping expense with no user_id:', serverExpense.id);
+          continue;
+        }
 
-      if (localExpense) {
-        // Update existing local record
-        db.runSync(
-          'UPDATE expenses SET title = ?, amount = ?, category_id = ?, expense_date = ?, description = ?, sync_status = "synced", last_modified = ? WHERE server_id = ?',
-          [
-            serverExpense.title,
-            serverExpense.amount,
-            serverExpense.category_id,
-            serverExpense.expense_date,
-            serverExpense.description ?? '',
-            serverExpense.last_modified,
-            serverExpense.id,
-          ]
+        const localExpense = db.getFirstSync(
+          'SELECT * FROM expenses WHERE server_id = ?',
+          [serverExpense.id]
         );
-      } else {
-        // Insert new record from server
-        db.runSync(
-          'INSERT INTO expenses (title, amount, category_id, expense_date, description, server_id, sync_status, last_modified) VALUES (?, ?, ?, ?, ?, ?, "synced", ?)',
-          [
-            serverExpense.title,
-            serverExpense.amount,
-            serverExpense.category_id,
-            serverExpense.expense_date,
-            serverExpense.description ?? '',
-            serverExpense.id,
-            serverExpense.last_modified,
-          ]
-        );
+
+        if (localExpense) {
+          // Update existing local record
+          db.runSync(
+            'UPDATE expenses SET title = ?, amount = ?, category_id = ?, expense_date = ?, description = ?, sync_status = "synced", last_modified = ? WHERE server_id = ?',
+            [
+              serverExpense.title ?? '',
+              serverExpense.amount ?? 0,
+              serverExpense.category_id ?? 0,
+              serverExpense.expense_date ?? new Date().toISOString().split('T')[0],
+              serverExpense.description ?? '',
+              serverExpense.updated_at ?? new Date().toISOString(),
+              serverExpense.id,
+            ]
+          );
+        } else {
+          // Insert new record from server - ALWAYS include user_id
+          db.runSync(
+            'INSERT INTO expenses (title, amount, category_id, expense_date, description, server_id, sync_status, last_modified, user_id) VALUES (?, ?, ?, ?, ?, ?, "synced", ?, ?)',
+            [
+              serverExpense.title ?? '',
+              serverExpense.amount ?? 0,
+              serverExpense.category_id ?? 0,
+              serverExpense.expense_date ?? new Date().toISOString().split('T')[0],
+              serverExpense.description ?? '',
+              serverExpense.id,
+              serverExpense.updated_at ?? new Date().toISOString(),
+              serverExpense.user_id, // <-- CRITICAL: Always include user_id
+            ]
+          );
+        }
       }
+    } catch (error) {
+      console.error('Error syncing expenses:', error);
     }
   }
 
@@ -329,6 +404,46 @@ export class SyncService {
       }
     } catch (error) {
       console.error('Error syncing savings transactions:', error);
+    }
+  }
+
+  // BUDGETS SYNC
+  private async pullBudgetUpdates() {
+    try {
+      const serverBudgets = await budgetsApi.list();
+
+      for (const serverBudget of serverBudgets) {
+        // ENSURE user_id is always provided
+        if (!serverBudget.user_id) {
+          console.warn('Skipping budget with no user_id:', serverBudget.id);
+          continue;
+        }
+
+        const localBudget = db.getFirstSync(
+          'SELECT * FROM budgets WHERE server_id = ?',
+          [serverBudget.id]
+        );
+
+        if (!localBudget) {
+          // Insert new budget from server - ALWAYS include user_id
+          db.runSync(
+            'INSERT INTO budgets (user_id, category_id, amount, period, title, start_date, end_date, server_id, sync_status, last_modified) VALUES (?, ?, ?, ?, ?, ?, ?, ?, "synced", ?)',
+            [
+              serverBudget.user_id, // <-- CRITICAL: Always include user_id
+              serverBudget.category_id ?? 0,
+              serverBudget.amount ?? 0,
+              serverBudget.period ?? 'monthly',
+              serverBudget.title ?? '',
+              serverBudget.start_date ?? new Date().toISOString().split('T')[0],
+              serverBudget.end_date ?? new Date().toISOString().split('T')[0],
+              serverBudget.id,
+              serverBudget.updated_at ?? new Date().toISOString(),
+            ]
+          );
+        }
+      }
+    } catch (error) {
+      console.error('Error syncing budgets:', error);
     }
   }
 }

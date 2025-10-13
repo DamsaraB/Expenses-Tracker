@@ -368,8 +368,8 @@ export const loginUser = async (email: string, password: string) => {
   }
 };
 
-// Get user by ID
-export const getUserById = async (userId: number) => {
+// Get user by ID (basic info)
+export const getUserBasicInfoById = async (userId: number) => {
   try {
     console.log('Getting user by ID:', userId);
     
@@ -469,6 +469,66 @@ export const getMonthlyRemainingSalary = (userId: number, yearMonth: string) => 
   } catch (error) {
     console.error('Get monthly remaining salary error:', error);
     return 0;
+  }
+};
+
+// Update user profile locally with sync status
+export const updateUserProfile = (userId: number, updateData: {
+  name?: string;
+  monthly_income?: number;
+  currency?: string;
+  profile_image?: string;
+}) => {
+  try {
+    const setClause = [];
+    const params = [];
+    
+    if (updateData.name !== undefined) {
+      setClause.push('name = ?');
+      params.push(updateData.name);
+    }
+    if (updateData.monthly_income !== undefined) {
+      setClause.push('monthly_income = ?');
+      params.push(updateData.monthly_income);
+    }
+    if (updateData.currency !== undefined) {
+      setClause.push('currency = ?');
+      params.push(updateData.currency);
+    }
+    if (updateData.profile_image !== undefined) {
+      setClause.push('profile_image = ?');
+      params.push(updateData.profile_image);
+    }
+    
+    // Add sync status and timestamp
+    setClause.push('sync_status = ?', 'updated_at = CURRENT_TIMESTAMP');
+    params.push('modified');
+    params.push(userId);
+
+    const query = `UPDATE users SET ${setClause.join(', ')} WHERE id = ?`;
+    
+    db.runSync(query, params);
+    
+    // Get updated user
+    const updatedUser = db.getFirstSync(
+      'SELECT * FROM users WHERE id = ?',
+      [userId]
+    );
+    
+    return { success: true, user: updatedUser };
+  } catch (error) {
+    console.error('Update user profile error:', error);
+    return { success: false, error: 'Failed to update profile' };
+  }
+};
+
+// Get user by ID (for sync)
+export const getUserById = (userId: number) => {
+  try {
+    return db.getFirstSync('SELECT * FROM users WHERE id = ?', [userId]);
+  } catch (error) {
+    console.error('Get user error:', error);
+    return null;
   }
 };
 

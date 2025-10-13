@@ -20,8 +20,10 @@ import {
   addSavingsGoal,
   deleteSavingsGoal,
   getSavingsSummary,
+  getSavingsTransactionsForGoal,
   getUserSavingsGoals,
   SavingsGoal,
+  SavingsTransaction,
   updateSavingsGoal
 } from '../../services/savingsService';
 import { syncService } from '../../services/syncService';
@@ -29,7 +31,7 @@ import { syncService } from '../../services/syncService';
 export default function SavingsScreen() {
   const { user } = useUser();
   const { isDarkMode } = useTheme();
-  
+  const [goalTransactions, setGoalTransactions] = useState<{ [goalId: number]: SavingsTransaction[] }>({});
   const [savingsGoals, setSavingsGoals] = useState<SavingsGoal[]>([]);
   const [summary, setSummary] = useState({ totalTarget: 0, totalSaved: 0, progress: 0 });
   const [showAddModal, setShowAddModal] = useState(false);
@@ -59,17 +61,28 @@ export default function SavingsScreen() {
     try {
       setLoading(true);
       
-      // ONLY load from local SQLite (like budget)
-      const localGoals = getUserSavingsGoals(user.id);
-      const localSummary = getSavingsSummary(user.id);
+      // Load local data first (defensive - handle empty data)
+      const localGoals = getUserSavingsGoals(user.id) || [];
+      const localSummary = getSavingsSummary(user.id) || { totalTarget: 0, totalSaved: 0, progress: 0 };
+      
       setSavingsGoals(localGoals);
       setSummary(localSummary);
+
+      // Fetch transactions for each goal
+      const transactionsMap: { [goalId: number]: SavingsTransaction[] } = {};
+      for (const goal of localGoals) {
+        transactionsMap[goal.id] = getSavingsTransactionsForGoal(goal.id) || [];
+      }
+      setGoalTransactions(transactionsMap);
       
-      // Background sync (no await - don't block UI)
-      syncService.syncData().catch(console.error);
+      // Background sync (don't await - let it fail silently)
+      syncService.syncData().catch(error => {
+        console.error('Background sync failed:', error);
+      });
       
     } catch (error) {
       console.error('Error loading savings data:', error);
+      // Don't show alert - just continue with empty state
     } finally {
       setLoading(false);
     }
@@ -94,8 +107,10 @@ export default function SavingsScreen() {
   };
 
   const getProgressPercentage = (current: number, target: number) => {
-    return Math.min((current / target) * 100, 100);
-  };
+  if (!target || target <= 0) return 0;
+  const percentage = Math.min((current / target) * 100, 100);
+  return Math.max(percentage, 0); // Ensure it's not negative
+};
 
   const getDaysUntilTarget = (targetDate: string) => {
     const target = new Date(targetDate);
@@ -347,6 +362,24 @@ export default function SavingsScreen() {
         <Ionicons name="add" size={20} color="#fff" />
         <Text style={styles.addMoneyText}>Add Money</Text>
       </TouchableOpacity>
+
+      {goalTransactions[item.id] && goalTransactions[item.id].length > 0 && (
+        <View style={{ marginTop: 16 }}>
+          <Text style={{ fontWeight: 'bold', marginBottom: 4, color: Colors[isDarkMode ? 'dark' : 'light'].icon }}>
+            Transactions
+          </Text>
+          {goalTransactions[item.id].map(tx => (
+            <View key={tx.id} style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 2 }}>
+              <Text style={{ color: Colors[isDarkMode ? 'dark' : 'light'].text }}>
+                {tx.transaction_type === 'deposit' ? '+' : '-'}{formatCurrency(tx.amount)}
+              </Text>
+              <Text style={{ color: Colors[isDarkMode ? 'dark' : 'light'].icon, fontSize: 12 }}>
+                {tx.transaction_date}
+              </Text>
+            </View>
+          ))}
+        </View>
+      )}
     </View>
   );
 

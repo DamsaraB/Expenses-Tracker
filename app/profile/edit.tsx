@@ -32,7 +32,7 @@ export default function EditProfileScreen() {
 
   const handleSave = async () => {
     if (!formData.name.trim() || !formData.email.trim()) {
-      Alert.alert('Error', 'Please fill in all fields');
+      Alert.alert('Error', 'Please fill in all required fields');
       return;
     }
 
@@ -40,6 +40,8 @@ export default function EditProfileScreen() {
       Alert.alert('Error', 'Please enter a valid email address');
       return;
     }
+
+    if (!user) return;
 
     setLoading(true);
     try {
@@ -60,6 +62,7 @@ export default function EditProfileScreen() {
         { text: 'OK', onPress: () => router.back() }
       ]);
     } catch (error) {
+      console.error('Profile update error:', error);
       Alert.alert('Error', 'Failed to update profile. Please try again.');
     } finally {
       setLoading(false);
@@ -128,26 +131,24 @@ export default function EditProfileScreen() {
 
             <View style={styles.inputGroup}>
               <Text style={[styles.label, { color: Colors[isDarkMode ? 'dark' : 'light'].text }]}>
-                Email Address
+                Email Address (Read Only)
               </Text>
               <TextInput
                 style={[styles.input, { 
-                  backgroundColor: Colors[isDarkMode ? 'dark' : 'light'].background,
+                  backgroundColor: Colors[isDarkMode ? 'dark' : 'light'].icon + '10',
                   borderColor: Colors[isDarkMode ? 'dark' : 'light'].icon + '30',
-                  color: Colors[isDarkMode ? 'dark' : 'light'].text,
+                  color: Colors[isDarkMode ? 'dark' : 'light'].icon,
                 }]}
                 value={formData.email}
-                onChangeText={(text) => setFormData({ ...formData, email: text })}
                 placeholder="Enter your email address"
                 placeholderTextColor={Colors[isDarkMode ? 'dark' : 'light'].icon}
-                keyboardType="email-address"
-                autoCapitalize="none"
+                editable={false} // Make email read-only
               />
             </View>
 
             <View style={styles.inputGroup}>
               <Text style={[styles.label, { color: Colors[isDarkMode ? 'dark' : 'light'].text }]}>
-                Phone Number (Optional)
+                Monthly Income (Optional)
               </Text>
               <TextInput
                 style={[styles.input, { 
@@ -155,7 +156,27 @@ export default function EditProfileScreen() {
                   borderColor: Colors[isDarkMode ? 'dark' : 'light'].icon + '30',
                   color: Colors[isDarkMode ? 'dark' : 'light'].text,
                 }]}
-                placeholder="Enter your phone number"
+                value={formData.monthly_income}
+                onChangeText={(text) => setFormData({ ...formData, monthly_income: text })}
+                placeholder="Enter your monthly income"
+                placeholderTextColor={Colors[isDarkMode ? 'dark' : 'light'].icon}
+                keyboardType="numeric"
+              />
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={[styles.label, { color: Colors[isDarkMode ? 'dark' : 'light'].text }]}>
+                Currency
+              </Text>
+              <TextInput
+                style={[styles.input, { 
+                  backgroundColor: Colors[isDarkMode ? 'dark' : 'light'].background,
+                  borderColor: Colors[isDarkMode ? 'dark' : 'light'].icon + '30',
+                  color: Colors[isDarkMode ? 'dark' : 'light'].text,
+                }]}
+                value={formData.currency}
+                onChangeText={(text) => setFormData({ ...formData, currency: text })}
+                placeholder="USD"
                 placeholderTextColor={Colors[isDarkMode ? 'dark' : 'light'].icon}
                 keyboardType="phone-pad"
               value={formData.phone}
