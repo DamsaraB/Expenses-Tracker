@@ -1,63 +1,30 @@
-import React, { useState, useEffect } from 'react';
 import { Ionicons } from '@expo/vector-icons';
-import { Canvas, Circle, Group, Path, Skia, vec } from '@shopify/react-native-skia';
+import { Canvas, Group, Path, Skia } from '@shopify/react-native-skia';
 import * as Print from 'expo-print';
 import { useRouter } from 'expo-router';
 import * as Sharing from 'expo-sharing';
+import React, { useEffect, useState } from 'react';
 import {
-  Alert,
-  Dimensions,
-  SafeAreaView,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-  ActivityIndicator,
+    ActivityIndicator,
+    Alert,
+    Dimensions,
+    SafeAreaView,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
 } from 'react-native';
+import { reportsApi } from '../../services/api/api';
+import type {
+    BudgetAdherenceData,
+    CategoryDistributionData,
+    MonthlyExpenditureData,
+    SavingsForecastData,
+    SavingsProgressData
+} from '../../services/api/types';
 
 const screenWidth = Dimensions.get('window').width;
-
-// Mock API client - replace with your actual implementation
-const reportsApi = {
-  monthlyExpenditure: async (year: number) => ({
-    data: [
-      { month_number: 1, month_name: 'January', transaction_count: 45, total_amount: 20000, avg_amount: 444.44, trend: 'Same' },
-      { month_number: 2, month_name: 'February', transaction_count: 52, total_amount: 25000, avg_amount: 480.77, trend: 'Increase' },
-      { month_number: 3, month_name: 'March', transaction_count: 48, total_amount: 22000, avg_amount: 458.33, trend: 'Decrease' },
-      { month_number: 4, month_name: 'April', transaction_count: 55, total_amount: 28000, avg_amount: 509.09, trend: 'Increase' },
-      { month_number: 5, month_name: 'May', transaction_count: 50, total_amount: 24000, avg_amount: 480.00, trend: 'Decrease' },
-      { month_number: 6, month_name: 'June', transaction_count: 53, total_amount: 26000, avg_amount: 490.57, trend: 'Increase' },
-    ]
-  }),
-  budgetAdherence: async (startDate: string, endDate: string) => ({
-    data: [
-      { budget_id: 1, category_name: 'Food', budget_amount: 15000, spent_amount: 13500, remaining_amount: 1500, utilization_percentage: 90, status: 'Alert' },
-      { budget_id: 2, category_name: 'Transport', budget_amount: 8000, spent_amount: 9200, remaining_amount: -1200, utilization_percentage: 115, status: 'Over Budget' },
-      { budget_id: 3, category_name: 'Shopping', budget_amount: 10000, spent_amount: 6500, remaining_amount: 3500, utilization_percentage: 65, status: 'On Track' },
-      { budget_id: 4, category_name: 'Bills', budget_amount: 12000, spent_amount: 11800, remaining_amount: 200, utilization_percentage: 98.33, status: 'Alert' },
-    ]
-  }),
-  categoryDistribution: async (startDate: string, endDate: string) => ({
-    data: [
-      { category_name: 'Food', color: '#FF6B6B', icon: 'restaurant', transaction_count: 45, total_amount: 13500, avg_amount: 300, percentage_of_total: 35 },
-      { category_name: 'Transport', color: '#4ECDC4', icon: 'car', transaction_count: 32, total_amount: 9200, avg_amount: 287.50, percentage_of_total: 23.8 },
-      { category_name: 'Shopping', color: '#45B7D1', icon: 'cart', transaction_count: 28, total_amount: 6500, avg_amount: 232.14, percentage_of_total: 16.8 },
-      { category_name: 'Bills', color: '#FFA07A', icon: 'receipt', transaction_count: 15, total_amount: 11800, avg_amount: 786.67, percentage_of_total: 30.5 },
-    ]
-  }),
-  savingsForecast: async (monthsAhead: number) => ({
-    data: Array.from({ length: monthsAhead }, (_, i) => ({
-      month_offset: i + 1,
-      forecast_month: new Date(2025, i, 1).toISOString().slice(0, 7),
-      projected_income: 50000,
-      projected_expense: 38000,
-      projected_monthly_savings: 12000,
-      cumulative_savings: 15000 + (12000 * (i + 1)),
-      trend: 'Positive'
-    }))
-  }),
-};
 
 const Colors = {
   light: {
@@ -78,12 +45,26 @@ const Colors = {
   }
 };
 
+interface ReportData {
+  monthly: MonthlyExpenditureData[];
+  budget: BudgetAdherenceData[];
+  category: CategoryDistributionData[];
+  forecast: SavingsForecastData[];
+  savings?: SavingsProgressData[];
+}
+
 export default function ReportsScreen() {
   const router = useRouter();
   const [isDarkMode] = useState(false);
   const [loading, setLoading] = useState(false);
   const [selectedReport, setSelectedReport] = useState('overview');
-  const [reportData, setReportData] = useState<any>({});
+  const [reportData, setReportData] = useState<ReportData>({
+    monthly: [],
+    budget: [],
+    category: [],
+    forecast: [],
+    savings: []
+  });
   const currentYear = new Date().getFullYear();
 
   useEffect(() => {
@@ -93,21 +74,29 @@ export default function ReportsScreen() {
   const loadReportData = async () => {
     setLoading(true);
     try {
-      const [monthly, budget, category, forecast] = await Promise.all([
+      // Get current date for date ranges
+      const currentDate = new Date();
+      const startOfYear = `${currentYear}-01-01`;
+      const endOfYear = `${currentYear}-12-31`;
+
+      const [monthlyRes, budgetRes, categoryRes, forecastRes, savingsRes] = await Promise.all([
         reportsApi.monthlyExpenditure(currentYear),
-        reportsApi.budgetAdherence('2025-01-01', '2025-12-31'),
-        reportsApi.categoryDistribution('2025-01-01', '2025-12-31'),
+        reportsApi.budgetAdherence(startOfYear, endOfYear),
+        reportsApi.categoryDistribution(startOfYear, endOfYear),
         reportsApi.savingsForecast(6),
+        reportsApi.savingsProgress()
       ]);
 
       setReportData({
-        monthly: monthly.data,
-        budget: budget.data,
-        category: category.data,
-        forecast: forecast.data,
+        monthly: monthlyRes.data || [],
+        budget: budgetRes.data || [],
+        category: categoryRes.data || [],
+        forecast: forecastRes.data || [],
+        savings: savingsRes.data || []
       });
     } catch (error) {
-      Alert.alert('Error', 'Failed to load reports');
+      console.error('Failed to load reports:', error);
+      Alert.alert('Error', 'Failed to load reports. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -138,43 +127,80 @@ export default function ReportsScreen() {
               <h1>Financial Report ${currentYear}</h1>
               <p>Generated on ${new Date().toLocaleDateString()}</p>
             </div>
+            
             <div class="section">
               <h3>Monthly Expenditure Analysis</h3>
               <table>
-                <tr><th>Month</th><th>Transactions</th><th>Total Amount</th><th>Trend</th></tr>
-                ${reportData.monthly?.map((m: any) => `
+                <tr><th>Month</th><th>Transactions</th><th>Total Amount</th><th>Average</th><th>Trend</th></tr>
+                ${reportData.monthly.map((m) => `
                   <tr>
                     <td>${m.month_name}</td>
                     <td>${m.transaction_count}</td>
                     <td>Rs. ${m.total_amount.toFixed(2)}</td>
+                    <td>Rs. ${m.avg_amount.toFixed(2)}</td>
                     <td>${m.trend}</td>
                   </tr>
-                `).join('') || ''}
+                `).join('')}
               </table>
             </div>
+            
             <div class="section">
               <h3>Budget Adherence</h3>
               <table>
-                <tr><th>Category</th><th>Budget</th><th>Spent</th><th>Remaining</th><th>Status</th></tr>
-                ${reportData.budget?.map((b: any) => `
+                <tr><th>Category</th><th>Budget</th><th>Spent</th><th>Remaining</th><th>Utilization</th><th>Status</th></tr>
+                ${reportData.budget.map((b) => `
                   <tr>
                     <td>${b.category_name}</td>
                     <td>Rs. ${b.budget_amount.toFixed(2)}</td>
                     <td>Rs. ${b.spent_amount.toFixed(2)}</td>
                     <td>Rs. ${b.remaining_amount.toFixed(2)}</td>
+                    <td>${b.utilization_percentage.toFixed(1)}%</td>
                     <td class="status-${b.status === 'Over Budget' ? 'over' : b.status === 'Alert' ? 'alert' : 'track'}">${b.status}</td>
                   </tr>
-                `).join('') || ''}
+                `).join('')}
+              </table>
+            </div>
+
+            <div class="section">
+              <h3>Category Distribution</h3>
+              <table>
+                <tr><th>Category</th><th>Transactions</th><th>Total Amount</th><th>Percentage</th></tr>
+                ${reportData.category.map((c) => `
+                  <tr>
+                    <td>${c.category_name}</td>
+                    <td>${c.transaction_count}</td>
+                    <td>Rs. ${c.total_amount.toFixed(2)}</td>
+                    <td>${c.percentage_of_total.toFixed(1)}%</td>
+                  </tr>
+                `).join('')}
+              </table>
+            </div>
+
+            <div class="section">
+              <h3>Savings Progress</h3>
+              <table>
+                <tr><th>Goal</th><th>Target</th><th>Current</th><th>Progress</th><th>Status</th></tr>
+                ${(reportData.savings || []).map((s) => `
+                  <tr>
+                    <td>${s.title}</td>
+                    <td>Rs. ${s.target_amount.toFixed(2)}</td>
+                    <td>Rs. ${s.current_amount.toFixed(2)}</td>
+                    <td>${s.progress_percentage.toFixed(1)}%</td>
+                    <td>${s.is_achieved ? 'Achieved' : 'In Progress'}</td>
+                  </tr>
+                `).join('')}
               </table>
             </div>
           </body>
         </html>
       `;
+      
       const { uri } = await Print.printToFileAsync({ html: htmlContent });
       if (await Sharing.isAvailableAsync()) {
         await Sharing.shareAsync(uri);
       }
     } catch (error) {
+      console.error('PDF generation failed:', error);
       Alert.alert('Error', 'Failed to generate PDF');
     }
   };
@@ -185,15 +211,26 @@ export default function ReportsScreen() {
     
     const w = screenWidth - 60;
     const h = 180;
-    const amounts = data.map((d: any) => d.total_amount);
+    const amounts = data.map((d) => d.total_amount);
     const max = Math.max(...amounts);
     const min = Math.min(...amounts);
-    const stepX = w / (data.length - 1);
+    const range = max - min;
+    
+    if (range === 0) {
+      // If all values are the same, draw a horizontal line
+      const path = Skia.Path.Make();
+      const y = h / 2;
+      path.moveTo(0, y);
+      path.lineTo(w, y);
+      return path;
+    }
+    
+    const stepX = w / Math.max(data.length - 1, 1);
     
     const path = Skia.Path.Make();
-    data.forEach((item: any, i: number) => {
+    data.forEach((item, i) => {
       const x = i * stepX;
-      const y = h - ((item.total_amount - min) / (max - min)) * h;
+      const y = h - ((item.total_amount - min) / range) * h;
       if (i === 0) path.moveTo(x, y);
       else path.lineTo(x, y);
     });
@@ -202,30 +239,40 @@ export default function ReportsScreen() {
 
   const getPieAngles = () => {
     const data = reportData.category || [];
-    const total = data.reduce((sum: number, c: any) => sum + c.percentage_of_total, 0);
-    let angles: any[] = [];
+    if (data.length === 0) return [];
+    
+    let angles: Array<{start: number, sweep: number, color: string, name: string, value: number}> = [];
     let start = 0;
     
-    data.forEach((c: any) => {
+    data.forEach((c) => {
       const sweep = (c.percentage_of_total / 100) * 2 * Math.PI;
-      angles.push({ start, sweep, color: c.color, name: c.category_name, value: c.percentage_of_total });
+      angles.push({ 
+        start, 
+        sweep, 
+        color: c.color, 
+        name: c.category_name, 
+        value: c.percentage_of_total 
+      });
       start += sweep;
     });
     return angles;
   };
 
   const reportTypes = [
-    { id: 'overview', title: 'Overview', icon: 'analytics' },
-    { id: 'monthly', title: 'Monthly Trends', icon: 'trending-up' },
-    { id: 'budget', title: 'Budget', icon: 'wallet' },
-    { id: 'category', title: 'Categories', icon: 'pie-chart' },
-    { id: 'forecast', title: 'Forecast', icon: 'analytics' },
+    { id: 'overview', title: 'Overview', icon: 'analytics' as const },
+    { id: 'monthly', title: 'Monthly Trends', icon: 'trending-up' as const },
+    { id: 'budget', title: 'Budget', icon: 'wallet' as const },
+    { id: 'category', title: 'Categories', icon: 'pie-chart' as const },
+    { id: 'forecast', title: 'Forecast', icon: 'analytics' as const },
+    { id: 'savings', title: 'Savings Goals', icon: 'trophy' as const },
   ];
 
   const renderOverview = () => {
-    const totalExpenses = reportData.monthly?.reduce((sum: number, m: any) => sum + m.total_amount, 0) || 0;
-    const avgMonthly = totalExpenses / (reportData.monthly?.length || 1);
-    const overBudgetCount = reportData.budget?.filter((b: any) => b.status === 'Over Budget').length || 0;
+    const totalExpenses = reportData.monthly?.reduce((sum, m) => sum + m.total_amount, 0) || 0;
+    const avgMonthly = reportData.monthly?.length > 0 ? totalExpenses / reportData.monthly.length : 0;
+    const overBudgetCount = reportData.budget?.filter((b) => b.status === 'Over Budget').length || 0;
+    const totalSavingsGoals = reportData.savings?.length || 0;
+    const achievedGoals = reportData.savings?.filter((s) => s.is_achieved).length || 0;
 
     return (
       <View>
@@ -246,14 +293,33 @@ export default function ReportsScreen() {
           </View>
         </View>
 
-        <View style={[styles.chartContainer, { backgroundColor: Colors[isDarkMode ? 'dark' : 'light'].cardBackground }]}>
-          <Text style={[styles.chartTitle, { color: Colors[isDarkMode ? 'dark' : 'light'].text }]}>
-            Monthly Expenses Trend
-          </Text>
-          <Canvas style={{ width: screenWidth - 60, height: 180 }}>
-            <Path path={getLineChartPath()} color="#007AFF" style="stroke" strokeWidth={3} />
-          </Canvas>
+        <View style={styles.summaryGrid}>
+          <View style={[styles.summaryCard, { backgroundColor: Colors[isDarkMode ? 'dark' : 'light'].cardBackground }]}>
+            <Ionicons name="trophy" size={24} color="#4CAF50" />
+            <Text style={[styles.summaryValue, { color: Colors[isDarkMode ? 'dark' : 'light'].text }]}>
+              {achievedGoals}/{totalSavingsGoals}
+            </Text>
+            <Text style={[styles.summaryLabel, { color: Colors[isDarkMode ? 'dark' : 'light'].icon }]}>Goals Achieved</Text>
+          </View>
+          <View style={[styles.summaryCard, { backgroundColor: Colors[isDarkMode ? 'dark' : 'light'].cardBackground }]}>
+            <Ionicons name="pie-chart" size={24} color="#007AFF" />
+            <Text style={[styles.summaryValue, { color: Colors[isDarkMode ? 'dark' : 'light'].text }]}>
+              {reportData.category?.length || 0}
+            </Text>
+            <Text style={[styles.summaryLabel, { color: Colors[isDarkMode ? 'dark' : 'light'].icon }]}>Categories</Text>
+          </View>
         </View>
+
+        {reportData.monthly.length > 0 && (
+          <View style={[styles.chartContainer, { backgroundColor: Colors[isDarkMode ? 'dark' : 'light'].cardBackground }]}>
+            <Text style={[styles.chartTitle, { color: Colors[isDarkMode ? 'dark' : 'light'].text }]}>
+              Monthly Expenses Trend
+            </Text>
+            <Canvas style={{ width: screenWidth - 60, height: 180 }}>
+              <Path path={getLineChartPath()} color="#007AFF" style="stroke" strokeWidth={3} />
+            </Canvas>
+          </View>
+        )}
       </View>
     );
   };
@@ -263,39 +329,108 @@ export default function ReportsScreen() {
       <Text style={[styles.reportTitle, { color: Colors[isDarkMode ? 'dark' : 'light'].text }]}>
         Monthly Expenditure Analysis
       </Text>
-      {reportData.monthly?.map((month: any, index: number) => (
-        <View key={index} style={styles.reportRow}>
-          <View style={styles.reportRowLeft}>
-            <Text style={[styles.reportMonth, { color: Colors[isDarkMode ? 'dark' : 'light'].text }]}>
-              {month.month_name}
-            </Text>
-            <Text style={[styles.reportSubtext, { color: Colors[isDarkMode ? 'dark' : 'light'].icon }]}>
-              {month.transaction_count} transactions
-            </Text>
-          </View>
-          <View style={styles.reportRowRight}>
-            <Text style={[styles.reportAmount, { color: Colors[isDarkMode ? 'dark' : 'light'].text }]}>
-              Rs. {month.total_amount.toFixed(2)}
-            </Text>
-            <View style={[styles.trendBadge, { 
-              backgroundColor: month.trend === 'Increase' ? '#4CAF5020' : month.trend === 'Decrease' ? '#F4433620' : '#FF980020' 
-            }]}>
-              <Ionicons 
-                name={month.trend === 'Increase' ? 'arrow-up' : month.trend === 'Decrease' ? 'arrow-down' : 'remove'} 
-                size={12} 
-                color={month.trend === 'Increase' ? '#4CAF50' : month.trend === 'Decrease' ? '#F44336' : '#FF9800'} 
-              />
-              <Text style={{ 
-                color: month.trend === 'Increase' ? '#4CAF50' : month.trend === 'Decrease' ? '#F44336' : '#FF9800',
-                fontSize: 11,
-                marginLeft: 2
-              }}>
-                {month.trend}
+      {reportData.monthly.length === 0 ? (
+        <Text style={[styles.emptyText, { color: Colors[isDarkMode ? 'dark' : 'light'].icon }]}>
+          No monthly data available
+        </Text>
+      ) : (
+        reportData.monthly.map((month, index) => (
+          <View key={index} style={styles.reportRow}>
+            <View style={styles.reportRowLeft}>
+              <Text style={[styles.reportMonth, { color: Colors[isDarkMode ? 'dark' : 'light'].text }]}>
+                {month.month_name}
+              </Text>
+              <Text style={[styles.reportSubtext, { color: Colors[isDarkMode ? 'dark' : 'light'].icon }]}>
+                {month.transaction_count} transactions • Avg: Rs. {month.avg_amount.toFixed(2)}
               </Text>
             </View>
+            <View style={styles.reportRowRight}>
+              <Text style={[styles.reportAmount, { color: Colors[isDarkMode ? 'dark' : 'light'].text }]}>
+                Rs. {month.total_amount.toFixed(2)}
+              </Text>
+              <View style={[styles.trendBadge, { 
+                backgroundColor: month.trend === 'Increase' ? '#4CAF5020' : month.trend === 'Decrease' ? '#F4433620' : '#FF980020' 
+              }]}>
+                <Ionicons 
+                  name={month.trend === 'Increase' ? 'arrow-up' : month.trend === 'Decrease' ? 'arrow-down' : 'remove'} 
+                  size={12} 
+                  color={month.trend === 'Increase' ? '#4CAF50' : month.trend === 'Decrease' ? '#F44336' : '#FF9800'} 
+                />
+                <Text style={{ 
+                  color: month.trend === 'Increase' ? '#4CAF50' : month.trend === 'Decrease' ? '#F44336' : '#FF9800',
+                  fontSize: 11,
+                  marginLeft: 2
+                }}>
+                  {month.trend}
+                </Text>
+              </View>
+            </View>
           </View>
-        </View>
-      ))}
+        ))
+      )}
+    </View>
+  );
+
+  const renderSavingsReport = () => (
+    <View style={[styles.reportCard, { backgroundColor: Colors[isDarkMode ? 'dark' : 'light'].cardBackground }]}>
+      <Text style={[styles.reportTitle, { color: Colors[isDarkMode ? 'dark' : 'light'].text }]}>
+        Savings Goals Progress
+      </Text>
+      {!reportData.savings || reportData.savings.length === 0 ? (
+        <Text style={[styles.emptyText, { color: Colors[isDarkMode ? 'dark' : 'light'].icon }]}>
+          No savings goals found
+        </Text>
+      ) : (
+        reportData.savings.map((goal, index) => (
+          <View key={index} style={styles.budgetItem}>
+            <View style={styles.budgetHeader}>
+              <Text style={[styles.budgetCategory, { color: Colors[isDarkMode ? 'dark' : 'light'].text }]}>
+                {goal.title}
+              </Text>
+              <View style={[styles.statusBadge, { 
+                backgroundColor: goal.is_achieved ? '#4CAF5020' : goal.progress_percentage > 75 ? '#FF980020' : '#007AFF20'
+              }]}>
+                <Text style={{ 
+                  color: goal.is_achieved ? '#4CAF50' : goal.progress_percentage > 75 ? '#FF9800' : '#007AFF',
+                  fontSize: 11,
+                  fontWeight: '600'
+                }}>
+                  {goal.is_achieved ? 'Achieved' : goal.progress_percentage > 75 ? 'Near Goal' : 'In Progress'}
+                </Text>
+              </View>
+            </View>
+            <View style={styles.budgetProgress}>
+              <View style={[styles.progressBar, { backgroundColor: Colors[isDarkMode ? 'dark' : 'light'].border }]}>
+                <View style={[styles.progressFill, { 
+                  width: `${Math.min(goal.progress_percentage, 100)}%`,
+                  backgroundColor: goal.is_achieved ? '#4CAF50' : goal.progress_percentage > 75 ? '#FF9800' : '#007AFF'
+                }]} />
+              </View>
+            </View>
+            <View style={styles.budgetDetails}>
+              <Text style={[styles.budgetText, { color: Colors[isDarkMode ? 'dark' : 'light'].icon }]}>
+                Current: Rs. {goal.current_amount.toFixed(2)}
+              </Text>
+              <Text style={[styles.budgetText, { color: Colors[isDarkMode ? 'dark' : 'light'].icon }]}>
+                Target: Rs. {goal.target_amount.toFixed(2)}
+              </Text>
+            </View>
+            <View style={styles.savingsDetails}>
+              <Text style={[styles.budgetPercentage, { color: Colors[isDarkMode ? 'dark' : 'light'].text }]}>
+                {goal.progress_percentage.toFixed(1)}% completed
+              </Text>
+              <Text style={[styles.savingsCategory, { color: Colors[isDarkMode ? 'dark' : 'light'].icon }]}>
+                {goal.category} • Priority: {goal.priority}
+              </Text>
+              {goal.target_date && (
+                <Text style={[styles.savingsDate, { color: Colors[isDarkMode ? 'dark' : 'light'].icon }]}>
+                  Target Date: {new Date(goal.target_date).toLocaleDateString()}
+                </Text>
+              )}
+            </View>
+          </View>
+        ))
+      )}
     </View>
   );
 
@@ -304,48 +439,54 @@ export default function ReportsScreen() {
       <Text style={[styles.reportTitle, { color: Colors[isDarkMode ? 'dark' : 'light'].text }]}>
         Budget Adherence Tracking
       </Text>
-      {reportData.budget?.map((budget: any, index: number) => (
-        <View key={index} style={styles.budgetItem}>
-          <View style={styles.budgetHeader}>
-            <Text style={[styles.budgetCategory, { color: Colors[isDarkMode ? 'dark' : 'light'].text }]}>
-              {budget.category_name}
-            </Text>
-            <View style={[styles.statusBadge, { 
-              backgroundColor: budget.status === 'Over Budget' ? '#F4433620' : 
-                             budget.status === 'Alert' ? '#FF980020' : '#4CAF5020' 
-            }]}>
-              <Text style={{ 
-                color: budget.status === 'Over Budget' ? '#F44336' : 
-                       budget.status === 'Alert' ? '#FF9800' : '#4CAF50',
-                fontSize: 11,
-                fontWeight: '600'
-              }}>
-                {budget.status}
+      {reportData.budget.length === 0 ? (
+        <Text style={[styles.emptyText, { color: Colors[isDarkMode ? 'dark' : 'light'].icon }]}>
+          No budget data available
+        </Text>
+      ) : (
+        reportData.budget.map((budget, index) => (
+          <View key={index} style={styles.budgetItem}>
+            <View style={styles.budgetHeader}>
+              <Text style={[styles.budgetCategory, { color: Colors[isDarkMode ? 'dark' : 'light'].text }]}>
+                {budget.category_name}
+              </Text>
+              <View style={[styles.statusBadge, { 
+                backgroundColor: budget.status === 'Over Budget' ? '#F4433620' : 
+                               budget.status === 'Alert' ? '#FF980020' : '#4CAF5020' 
+              }]}>
+                <Text style={{ 
+                  color: budget.status === 'Over Budget' ? '#F44336' : 
+                         budget.status === 'Alert' ? '#FF9800' : '#4CAF50',
+                  fontSize: 11,
+                  fontWeight: '600'
+                }}>
+                  {budget.status}
+                </Text>
+              </View>
+            </View>
+            <View style={styles.budgetProgress}>
+              <View style={[styles.progressBar, { backgroundColor: Colors[isDarkMode ? 'dark' : 'light'].border }]}>
+                <View style={[styles.progressFill, { 
+                  width: `${Math.min(budget.utilization_percentage, 100)}%`,
+                  backgroundColor: budget.utilization_percentage > 100 ? '#F44336' : 
+                                 budget.utilization_percentage > 80 ? '#FF9800' : '#4CAF50'
+                }]} />
+              </View>
+            </View>
+            <View style={styles.budgetDetails}>
+              <Text style={[styles.budgetText, { color: Colors[isDarkMode ? 'dark' : 'light'].icon }]}>
+                Spent: Rs. {budget.spent_amount.toFixed(2)}
+              </Text>
+              <Text style={[styles.budgetText, { color: Colors[isDarkMode ? 'dark' : 'light'].icon }]}>
+                Budget: Rs. {budget.budget_amount.toFixed(2)}
               </Text>
             </View>
-          </View>
-          <View style={styles.budgetProgress}>
-            <View style={[styles.progressBar, { backgroundColor: Colors[isDarkMode ? 'dark' : 'light'].border }]}>
-              <View style={[styles.progressFill, { 
-                width: `${Math.min(budget.utilization_percentage, 100)}%`,
-                backgroundColor: budget.utilization_percentage > 100 ? '#F44336' : 
-                               budget.utilization_percentage > 80 ? '#FF9800' : '#4CAF50'
-              }]} />
-            </View>
-          </View>
-          <View style={styles.budgetDetails}>
-            <Text style={[styles.budgetText, { color: Colors[isDarkMode ? 'dark' : 'light'].icon }]}>
-              Spent: Rs. {budget.spent_amount.toFixed(2)}
-            </Text>
-            <Text style={[styles.budgetText, { color: Colors[isDarkMode ? 'dark' : 'light'].icon }]}>
-              Budget: Rs. {budget.budget_amount.toFixed(2)}
+            <Text style={[styles.budgetPercentage, { color: Colors[isDarkMode ? 'dark' : 'light'].text }]}>
+              {budget.utilization_percentage.toFixed(1)}% utilized
             </Text>
           </View>
-          <Text style={[styles.budgetPercentage, { color: Colors[isDarkMode ? 'dark' : 'light'].text }]}>
-            {budget.utilization_percentage.toFixed(1)}% utilized
-          </Text>
-        </View>
-      ))}
+        ))
+      )}
     </View>
   );
 
@@ -354,80 +495,95 @@ export default function ReportsScreen() {
     
     return (
       <View>
-        <View style={[styles.chartContainer, { backgroundColor: Colors[isDarkMode ? 'dark' : 'light'].cardBackground }]}>
-          <Text style={[styles.chartTitle, { color: Colors[isDarkMode ? 'dark' : 'light'].text }]}>
-            Category Distribution
-          </Text>
-          <View style={styles.pieChartContainer}>
-            <Canvas style={{ width: 200, height: 200 }}>
-              <Group>
-                {pieAngles.map((a: any, i: number) => {
-                  const centerX = 100;
-                  const centerY = 100;
-                  const radius = 90;
-                  
-                  const path = Skia.Path.Make();
-                  path.moveTo(centerX, centerY);
-                  
-                  const startX = centerX + radius * Math.cos(a.start - Math.PI / 2);
-                  const startY = centerY + radius * Math.sin(a.start - Math.PI / 2);
-                  path.lineTo(startX, startY);
-                  
-                  const endX = centerX + radius * Math.cos(a.start + a.sweep - Math.PI / 2);
-                  const endY = centerY + radius * Math.sin(a.start + a.sweep - Math.PI / 2);
-                  
-                  const largeArc = a.sweep > Math.PI ? 1 : 0;
-                  // rArcTo(rx, ry, xAxisRotateInDegrees, useSmallArc, isCCW, dx, dy)
-                  path.rArcTo(
-                    radius, // rx
-                    radius, // ry
-                    0,      // xAxisRotateInDegrees
-                    largeArc === 0, // useSmallArc (true for small arc, false for large arc)
-                    false,  // isCCW (false for clockwise)
-                    endX - startX, // dx
-                    endY - startY  // dy
-                  );
-                  
-                  path.close();
-                  
-                  return <Path key={i} path={path} color={a.color} />;
-                })}
-              </Group>
-            </Canvas>
+        {reportData.category.length > 0 && (
+          <View style={[styles.chartContainer, { backgroundColor: Colors[isDarkMode ? 'dark' : 'light'].cardBackground }]}>
+            <Text style={[styles.chartTitle, { color: Colors[isDarkMode ? 'dark' : 'light'].text }]}>
+              Category Distribution
+            </Text>
+            <View style={styles.pieChartContainer}>
+              <Canvas style={{ width: 200, height: 200 }}>
+                <Group>
+                  {pieAngles.map((a, i) => {
+                    const centerX = 100;
+                    const centerY = 100;
+                    const radius = 90;
+                    
+                    const path = Skia.Path.Make();
+                    path.moveTo(centerX, centerY);
+                    
+                    const startX = centerX + radius * Math.cos(a.start - Math.PI / 2);
+                    const startY = centerY + radius * Math.sin(a.start - Math.PI / 2);
+                    path.lineTo(startX, startY);
+                    
+                    const endX = centerX + radius * Math.cos(a.start + a.sweep - Math.PI / 2);
+                    const endY = centerY + radius * Math.sin(a.start + a.sweep - Math.PI / 2);
+                    
+                    const largeArc = a.sweep > Math.PI ? 1 : 0;
+                    path.rArcTo(
+                      radius,
+                      radius,
+                      0,
+                      largeArc === 0,
+                      false,
+                      endX - startX,
+                      endY - startY
+                    );
+                    
+                    path.close();
+                    
+                    return <Path key={i} path={path} color={a.color} />;
+                  })}
+                </Group>
+              </Canvas>
+            </View>
+            <View style={styles.legendContainer}>
+              {reportData.category.map((cat, i) => (
+                <View key={i} style={styles.legendItem}>
+                  <View style={[styles.legendColor, { backgroundColor: cat.color }]} />
+                  <Text style={[styles.legendText, { color: Colors[isDarkMode ? 'dark' : 'light'].text }]}>
+                    {cat.category_name} ({cat.percentage_of_total.toFixed(1)}%)
+                  </Text>
+                </View>
+              ))}
+            </View>
           </View>
-          <View style={styles.legendContainer}>
-            {reportData.category?.map((cat: any, i: number) => (
-              <View key={i} style={styles.legendItem}>
-                <View style={[styles.legendColor, { backgroundColor: cat.color }]} />
-                <Text style={[styles.legendText, { color: Colors[isDarkMode ? 'dark' : 'light'].text }]}>
-                  {cat.category_name} ({cat.percentage_of_total.toFixed(1)}%)
-                </Text>
-              </View>
-            ))}
-          </View>
-        </View>
+        )}
 
         <View style={[styles.reportCard, { backgroundColor: Colors[isDarkMode ? 'dark' : 'light'].cardBackground }]}>
-          {reportData.category?.map((cat: any, index: number) => (
-            <View key={index} style={styles.categoryItem}>
-              <View style={styles.categoryHeader}>
+          <Text style={[styles.reportTitle, { color: Colors[isDarkMode ? 'dark' : 'light'].text }]}>
+            Category Details
+          </Text>
+          {reportData.category.length === 0 ? (
+            <Text style={[styles.emptyText, { color: Colors[isDarkMode ? 'dark' : 'light'].icon }]}>
+              No category data available
+            </Text>
+          ) : (
+            reportData.category.map((cat, index) => (
+              <View key={index} style={styles.categoryItem}>
+                <View style={styles.categoryHeader}>
                 <View style={[styles.categoryIcon, { backgroundColor: cat.color + '20' }]}>
-                  <Ionicons name={cat.icon} size={20} color={cat.color} />
+                <Text style={{ fontSize: 20 }}>{cat.icon}</Text>
                 </View>
-                <View style={styles.categoryInfo}>
-                  <Text style={[styles.categoryName, { color: Colors[isDarkMode ? 'dark' : 'light'].text }]}>
-                    {cat.category_name}
+                  <View style={styles.categoryInfo}>
+                    <Text style={[styles.categoryName, { color: Colors[isDarkMode ? 'dark' : 'light'].text }]}>
+                      {cat.category_name}
+                    </Text>
+                    <Text style={[styles.categoryCount, { color: Colors[isDarkMode ? 'dark' : 'light'].icon }]}>
+                      {cat.transaction_count} transactions • Avg: Rs. {cat.avg_amount.toFixed(2)}
+                    </Text>
+                  </View>
+                </View>
+                <View style={styles.categoryAmountContainer}>
+                  <Text style={[styles.categoryAmount, { color: Colors[isDarkMode ? 'dark' : 'light'].text }]}>
+                    Rs. {cat.total_amount.toFixed(2)}
                   </Text>
-                  <Text style={[styles.categoryCount, { color: Colors[isDarkMode ? 'dark' : 'light'].icon }]}>
-                    {cat.transaction_count} transactions
+                  <Text style={[styles.categoryPercentage, { color: Colors[isDarkMode ? 'dark' : 'light'].icon }]}>
+                    {cat.percentage_of_total.toFixed(1)}% of total
                   </Text>
                 </View>
               </View>
-              <Text style={[styles.categoryAmount, { color: Colors[isDarkMode ? 'dark' : 'light'].text }]}>
-                Rs. {cat.total_amount.toFixed(2)}
-              </Text>
-            </View>
-          ))}
+            ))
+          )}
         </View>
       </View>
     );
@@ -438,60 +594,71 @@ export default function ReportsScreen() {
       <Text style={[styles.reportTitle, { color: Colors[isDarkMode ? 'dark' : 'light'].text }]}>
         6-Month Savings Forecast
       </Text>
-      {reportData.forecast?.map((forecast: any, index: number) => (
-        <View key={index} style={styles.forecastItem}>
-          <View style={styles.forecastHeader}>
-            <Text style={[styles.forecastMonth, { color: Colors[isDarkMode ? 'dark' : 'light'].text }]}>
-              {forecast.forecast_month}
-            </Text>
-            <View style={[styles.trendBadge, { 
-              backgroundColor: forecast.trend === 'Positive' ? '#4CAF5020' : '#F4433620' 
-            }]}>
-              <Text style={{ 
-                color: forecast.trend === 'Positive' ? '#4CAF50' : '#F44336',
-                fontSize: 11,
-                fontWeight: '600'
-              }}>
-                {forecast.trend}
+      {reportData.forecast.length === 0 ? (
+        <Text style={[styles.emptyText, { color: Colors[isDarkMode ? 'dark' : 'light'].icon }]}>
+          No forecast data available
+        </Text>
+      ) : (
+        reportData.forecast.map((forecast, index) => (
+          <View key={index} style={styles.forecastItem}>
+            <View style={styles.forecastHeader}>
+              <Text style={[styles.forecastMonth, { color: Colors[isDarkMode ? 'dark' : 'light'].text }]}>
+                {forecast.forecast_month}
+              </Text>
+              <View style={[styles.trendBadge, { 
+                backgroundColor: forecast.trend === 'Positive' ? '#4CAF5020' : '#F4433620' 
+              }]}>
+                <Text style={{ 
+                  color: forecast.trend === 'Positive' ? '#4CAF50' : '#F44336',
+                  fontSize: 11,
+                  fontWeight: '600'
+                }}>
+                  {forecast.trend}
+                </Text>
+              </View>
+            </View>
+            <View style={styles.forecastDetails}>
+              <View style={styles.forecastRow}>
+                <Text style={[styles.forecastLabel, { color: Colors[isDarkMode ? 'dark' : 'light'].icon }]}>
+                  Projected Income:
+                </Text>
+                <Text style={[styles.forecastValue, { color: '#4CAF50' }]}>
+                  +Rs. {forecast.projected_income.toFixed(2)}
+                </Text>
+              </View>
+              <View style={styles.forecastRow}>
+                <Text style={[styles.forecastLabel, { color: Colors[isDarkMode ? 'dark' : 'light'].icon }]}>
+                  Projected Expense:
+                </Text>
+                <Text style={[styles.forecastValue, { color: '#F44336' }]}>
+                  -Rs. {forecast.projected_expense.toFixed(2)}
+                </Text>
+              </View>
+              <View style={styles.forecastRow}>
+                <Text style={[styles.forecastLabel, { color: Colors[isDarkMode ? 'dark' : 'light'].text, fontWeight: '600' }]}>
+                  Monthly Savings:
+                </Text>
+                <Text style={[styles.forecastValue, { 
+                  color: forecast.projected_monthly_savings >= 0 ? '#4CAF50' : '#F44336', 
+                  fontWeight: '600' 
+                }]}>
+                  Rs. {forecast.projected_monthly_savings.toFixed(2)}
+                </Text>
+              </View>
+            </View>
+            <View style={[styles.cumulativeBox, { backgroundColor: Colors[isDarkMode ? 'dark' : 'light'].background }]}>
+              <Text style={[styles.cumulativeLabel, { color: Colors[isDarkMode ? 'dark' : 'light'].icon }]}>
+                Cumulative Savings
+              </Text>
+              <Text style={[styles.cumulativeValue, { 
+                color: forecast.cumulative_savings >= 0 ? '#4CAF50' : '#F44336'
+              }]}>
+                Rs. {forecast.cumulative_savings.toFixed(2)}
               </Text>
             </View>
           </View>
-          <View style={styles.forecastDetails}>
-            <View style={styles.forecastRow}>
-              <Text style={[styles.forecastLabel, { color: Colors[isDarkMode ? 'dark' : 'light'].icon }]}>
-                Projected Income:
-              </Text>
-              <Text style={[styles.forecastValue, { color: '#4CAF50' }]}>
-                +Rs. {forecast.projected_income.toFixed(2)}
-              </Text>
-            </View>
-            <View style={styles.forecastRow}>
-              <Text style={[styles.forecastLabel, { color: Colors[isDarkMode ? 'dark' : 'light'].icon }]}>
-                Projected Expense:
-              </Text>
-              <Text style={[styles.forecastValue, { color: '#F44336' }]}>
-                -Rs. {forecast.projected_expense.toFixed(2)}
-              </Text>
-            </View>
-            <View style={styles.forecastRow}>
-              <Text style={[styles.forecastLabel, { color: Colors[isDarkMode ? 'dark' : 'light'].text, fontWeight: '600' }]}>
-                Monthly Savings:
-              </Text>
-              <Text style={[styles.forecastValue, { color: Colors[isDarkMode ? 'dark' : 'light'].text, fontWeight: '600' }]}>
-                Rs. {forecast.projected_monthly_savings.toFixed(2)}
-              </Text>
-            </View>
-          </View>
-          <View style={[styles.cumulativeBox, { backgroundColor: Colors[isDarkMode ? 'dark' : 'light'].background }]}>
-            <Text style={[styles.cumulativeLabel, { color: Colors[isDarkMode ? 'dark' : 'light'].icon }]}>
-              Cumulative Savings
-            </Text>
-            <Text style={[styles.cumulativeValue, { color: '#4CAF50' }]}>
-              Rs. {forecast.cumulative_savings.toFixed(2)}
-            </Text>
-          </View>
-        </View>
-      ))}
+        ))
+      )}
     </View>
   );
 
@@ -505,6 +672,8 @@ export default function ReportsScreen() {
         return renderCategoryReport();
       case 'forecast':
         return renderForecastReport();
+      case 'savings':
+        return renderSavingsReport();
       default:
         return renderOverview();
     }
@@ -568,6 +737,7 @@ export default function ReportsScreen() {
   );
 }
 
+// Merge existing styles with new ones
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -660,198 +830,222 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#E1E5E9',
   },
+  reportTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 16,
+  },
+  reportRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderColor: '#E1E5E9',
+  },
+  reportRowLeft: {
+    flex: 1,
+  },
+  reportMonth: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  reportSubtext: {
+    fontSize: 12,
+    marginTop: 2,
+  },
+  reportRowRight: {
+    alignItems: 'flex-end',
+  },
+  reportAmount: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  trendBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 10,
+    marginTop: 4,
+  },
+  budgetItem: {
+    marginBottom: 18,
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+    borderColor: '#E1E5E9',
+  },
+  budgetHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 6,
+  },
+  budgetCategory: {
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  statusBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 10,
+  },
+  budgetProgress: {
+    marginVertical: 8,
+  },
+  progressBar: {
+    height: 8,
+    borderRadius: 4,
+    overflow: 'hidden',
+    backgroundColor: '#E1E5E9',
+  },
+  progressFill: {
+    height: 8,
+    borderRadius: 4,
+  },
+  budgetDetails: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 4,
+  },
+  budgetText: {
+    fontSize: 13,
+  },
+  budgetPercentage: {
+    fontSize: 13,
+    fontWeight: '600',
+    marginTop: 4,
+  },
+  pieChartContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 12,
+  },
+  legendContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginTop: 8,
+  },
+  legendItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginRight: 16,
+    marginBottom: 4,
+  },
+  legendColor: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    marginRight: 6,
+  },
+  legendText: {
+    fontSize: 12,
+  },
+  categoryItem: {
+    marginBottom: 18,
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+    borderColor: '#E1E5E9',
+  },
+  categoryHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 6,
+  },
+  categoryIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 10,
+  },
+  categoryInfo: {
+    flex: 1,
+  },
+  categoryName: {
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  categoryCount: {
+    fontSize: 12,
+    marginTop: 2,
+  },
+  categoryAmountContainer: {
+    alignItems: 'flex-end',
+  },
+  categoryAmount: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  categoryPercentage: {
+    fontSize: 12,
+    marginTop: 2,
+  },
+  forecastItem: {
+    marginBottom: 18,
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+    borderColor: '#E1E5E9',
+  },
+  forecastHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 6,
+  },
+  forecastMonth: {
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  forecastDetails: {
+    marginTop: 6,
+  },
   forecastRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 8,
   },
-reportTitle: {
-  fontSize: 18,
-  fontWeight: 'bold',
-  marginBottom: 16,
-},
-reportRow: {
-  flexDirection: 'row',
-  justifyContent: 'space-between',
-  alignItems: 'center',
-  paddingVertical: 12,
-  borderBottomWidth: 1,
-  borderColor: '#E1E5E9',
-},
-reportRowLeft: {
-  flex: 1,
-},
-reportMonth: {
-  fontSize: 16,
-  fontWeight: '600',
-},
-reportSubtext: {
-  fontSize: 12,
-  marginTop: 2,
-},
-reportRowRight: {
-  alignItems: 'flex-end',
-},
-reportAmount: {
-  fontSize: 16,
-  fontWeight: '600',
-},
-trendBadge: {
-  flexDirection: 'row',
-  alignItems: 'center',
-  paddingHorizontal: 8,
-  paddingVertical: 2,
-  borderRadius: 10,
-  marginTop: 4,
-},
-budgetItem: {
-  marginBottom: 18,
-  paddingBottom: 12,
-  borderBottomWidth: 1,
-  borderColor: '#E1E5E9',
-},
-budgetHeader: {
-  flexDirection: 'row',
-  justifyContent: 'space-between',
-  alignItems: 'center',
-  marginBottom: 6,
-},
-budgetCategory: {
-  fontSize: 15,
-  fontWeight: '600',
-},
-statusBadge: {
-  paddingHorizontal: 8,
-  paddingVertical: 2,
-  borderRadius: 10,
-},
-budgetProgress: {
-  marginVertical: 8,
-},
-progressBar: {
-  height: 8,
-  borderRadius: 4,
-  overflow: 'hidden',
-  backgroundColor: '#E1E5E9',
-},
-progressFill: {
-  height: 8,
-  borderRadius: 4,
-},
-budgetDetails: {
-  flexDirection: 'row',
-  justifyContent: 'space-between',
-  marginTop: 4,
-},
-budgetText: {
-  fontSize: 13,
-},
-budgetPercentage: {
-  fontSize: 13,
-  fontWeight: '600',
-  marginTop: 4,
-},
-pieChartContainer: {
-  alignItems: 'center',
-  justifyContent: 'center',
-  marginBottom: 12,
-},
-legendContainer: {
-  flexDirection: 'row',
-  flexWrap: 'wrap',
-  marginTop: 8,
-},
-legendItem: {
-  flexDirection: 'row',
-  alignItems: 'center',
-  marginRight: 16,
-  marginBottom: 4,
-},
-legendColor: {
-  width: 12,
-  height: 12,
-  borderRadius: 6,
-  marginRight: 6,
-},
-legendText: {
-  fontSize: 12,
-},
-categoryItem: {
-  marginBottom: 18,
-  paddingBottom: 12,
-  borderBottomWidth: 1,
-  borderColor: '#E1E5E9',
-},
-categoryHeader: {
-  flexDirection: 'row',
-  alignItems: 'center',
-  marginBottom: 6,
-},
-categoryIcon: {
-  width: 32,
-  height: 32,
-  borderRadius: 16,
-  alignItems: 'center',
-  justifyContent: 'center',
-  marginRight: 10,
-},
-categoryInfo: {
-  flex: 1,
-},
-categoryName: {
-  fontSize: 15,
-  fontWeight: '600',
-},
-categoryCount: {
-  fontSize: 12,
-  marginTop: 2,
-},
-categoryAmount: {
-  fontSize: 16,
-  fontWeight: '600',
-  marginTop: 4,
-},
-forecastItem: {
-  marginBottom: 18,
-  paddingBottom: 12,
-  borderBottomWidth: 1,
-  borderColor: '#E1E5E9',
-},
-forecastHeader: {
-  flexDirection: 'row',
-  justifyContent: 'space-between',
-  alignItems: 'center',
-  marginBottom: 6,
-},
-forecastMonth: {
-  fontSize: 15,
-  fontWeight: '600',
-},
-forecastDetails: {
-  marginTop: 6,
-},
-forecastLabel: {
-  fontSize: 13,
-},
-forecastValue: {
-  fontSize: 13,
-  fontWeight: '600',
-},
-cumulativeBox: {
-  marginTop: 8,
-  padding: 10,
-  borderRadius: 10,
-  backgroundColor: '#F8F9FA',
-  alignItems: 'center',
-},
-cumulativeLabel: {
-  fontSize: 12,
-  color: '#666',
-},
-cumulativeValue: {
-  fontSize: 15,
-  fontWeight: 'bold',
-  color: '#4CAF50',
-},
+  forecastLabel: {
+    fontSize: 13,
+  },
+  forecastValue: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  cumulativeBox: {
+    marginTop: 8,
+    padding: 10,
+    borderRadius: 10,
+    backgroundColor: '#F8F9FA',
+    alignItems: 'center',
+  },
+  cumulativeLabel: {
+    fontSize: 12,
+    color: '#666',
+  },
+  cumulativeValue: {
+    fontSize: 15,
+    fontWeight: 'bold',
+    color: '#4CAF50',
+  },
+  // New styles
+  emptyText: {
+    textAlign: 'center',
+    fontSize: 16,
+    fontStyle: 'italic',
+    paddingVertical: 20,
+  },
+  savingsDetails: {
+    marginTop: 8,
+  },
+  savingsCategory: {
+    fontSize: 12,
+    marginTop: 4,
+  },
+  savingsDate: {
+    fontSize: 12,
+    marginTop: 2,
+  },
 });

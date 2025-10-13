@@ -1,4 +1,4 @@
-import { authApi, budgetsApi, expensesApi, savingsGoalsApi, savingsTransactionsApi } from './api/api';
+import { authApi, budgetsApi, categoriesApi, expensesApi, savingsGoalsApi, savingsTransactionsApi } from './api/api';
 import { syncStorage } from './api/storage';
 import { db } from './database';
 
@@ -11,12 +11,14 @@ export class SyncService {
 
     try {
       // 1. Push local changes to server
+      await this.pushPendingCategoryUpdates(); // <-- ADD THIS
       await this.pushPendingChanges();
       await this.pushPendingUserUpdates(); // Add user sync
       await this.pushPendingSavingsGoals();
       await this.pushPendingSavingsTransactions();
       
       // 2. Pull server updates
+      await this.pullCategoryUpdates(); // <-- ADD THIS
       await this.pullServerUpdates();
       await this.pullUserUpdates(); // Add user sync
       await this.pullSavingsGoalsUpdates();
@@ -24,9 +26,102 @@ export class SyncService {
       
       // 3. Update last sync timestamp
       await syncStorage.saveLastSync(Date.now());
-      
     } finally {
       this.issyncing = false;
+    }
+  }
+
+  // PUSH LOCAL CATEGORY CHANGES TO SERVER
+  private async pushPendingCategoryUpdates() {
+    const pendingCategories = db.getAllSync(
+      'SELECT * FROM expense_categories WHERE sync_status IN ("pending", "modified")'
+    ) as Array<{
+      id: number;
+      server_id?: number;
+      user_id: number;
+      name: string;
+      color: string;
+      icon: string;
+      is_default: boolean;
+      is_active: boolean;
+      sync_status: string;
+      last_modified: string;
+    }>;
+
+    for (const category of pendingCategories) {
+      try {
+        if (category.sync_status === 'pending') {
+          // Create on backend
+          const result = await categoriesApi.create({
+            name: category.name,
+            color: category.color,
+            icon: category.icon,
+          });
+          db.runSync(
+            'UPDATE expense_categories SET server_id = ?, sync_status = "synced", last_modified = ? WHERE id = ?',
+            [result.id, new Date().toISOString(), category.id]
+          );
+        } else if (category.sync_status === 'modified' && category.server_id) {
+          // Update on backend
+          await categoriesApi.update(category.server_id, {
+            name: category.name,
+            color: category.color,
+            icon: category.icon,
+          });
+          db.runSync(
+            'UPDATE expense_categories SET sync_status = "synced", last_modified = ? WHERE id = ?',
+            [new Date().toISOString(), category.id]
+          );
+        }
+      } catch (error) {
+        console.error('Sync error for category:', category.id, error);
+      }
+    }
+  }
+
+  // PULL SERVER CATEGORY UPDATES TO LOCAL
+  private async pullCategoryUpdates() {
+    try {
+      const serverCategories = await categoriesApi.list();
+
+      for (const serverCategory of serverCategories) {
+        const localCategory = db.getFirstSync(
+          'SELECT * FROM expense_categories WHERE server_id = ?',
+          [serverCategory.id]
+        );
+
+        if (localCategory) {
+          // Update existing local record
+          db.runSync(
+            'UPDATE expense_categories SET name = ?, color = ?, icon = ?, is_active = ?, sync_status = "synced", last_modified = ? WHERE server_id = ?',
+            [
+              serverCategory.name ?? '',
+              serverCategory.color ?? '#007AFF',
+              serverCategory.icon ?? '📝',
+              serverCategory.is_active ? 1 : 0,
+              serverCategory.updated_at ?? new Date().toISOString(),
+              serverCategory.id,
+            ]
+          );
+        } else {
+          // Insert new record from server
+          db.runSync(
+            'INSERT INTO expense_categories (user_id, name, color, icon, is_default, is_active, server_id, sync_status, last_modified) VALUES (?, ?, ?, ?, ?, ?, ?, "synced", ?)',
+            [
+              serverCategory.user_id ?? 0,
+              serverCategory.name ?? '',
+              serverCategory.color ?? '#007AFF',
+              serverCategory.icon ?? '📝',
+              serverCategory.is_default ? 1 : 0,
+              serverCategory.is_active ? 1 : 0,
+              serverCategory.id,
+              serverCategory.updated_at ?? new Date().toISOString(),
+            ]
+          );
+        }
+      }
+    } catch (error) {
+      console.error('Error syncing categories:', error);
     }
   }
 
@@ -87,14 +182,15 @@ export class SyncService {
     try {
       // Get current user data from server
       const serverUser = await authApi.getCurrentUser();
-      
-      // Update local user with server data
+
+      // Check if user exists locally
       const localUser = db.getFirstSync(
         'SELECT * FROM users WHERE id = ?',
         [serverUser.id]
       );
 
       if (localUser) {
+        // Update local user
         db.runSync(
           'UPDATE users SET name = ?, monthly_income = ?, currency = ?, profile_image = ?, sync_status = "synced", updated_at = ? WHERE id = ?',
           [
@@ -107,6 +203,22 @@ export class SyncService {
           ]
         );
         console.log('User profile pulled from server successfully');
+      } else {
+        // INSERT user if not exists
+        db.runSync(
+          'INSERT INTO users (id, name, email, password, monthly_income, currency, profile_image, sync_status, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, "synced", ?)',
+          [
+            serverUser.id,
+            serverUser.name ?? '',
+            serverUser.email ?? '',
+            'server_synced', // <-- Provide a default password
+            serverUser.monthly_income ?? null,
+            serverUser.currency ?? 'USD',
+            serverUser.profile_image ?? null,
+            serverUser.updated_at ?? new Date().toISOString(),
+          ]
+        );
+        console.log('User profile inserted from server successfully');
       }
     } catch (error) {
       console.error('Error syncing user profile:', error);

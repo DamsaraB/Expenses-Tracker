@@ -2,12 +2,14 @@ import axios from 'axios';
 import * as SecureStore from 'expo-secure-store';
 import {
   ApiError,
+  BudgetAdherenceData,
   BudgetCreate,
   BudgetResponse,
   BudgetStatus,
   BudgetUpdate,
   CategoryBreakdown,
   CategoryCreate,
+  CategoryDistributionData,
   CategoryResponse,
   CategoryUpdate,
   ExpenseCreate,
@@ -21,12 +23,16 @@ import {
   IncomeResponse,
   IncomeUpdate,
   LoginRequest,
+  MonthlyExpenditureData,
   RegisterRequest,
+  ReportResponse,
+  SavingsForecastData,
   SavingsGoalCreate,
   SavingsGoalListParams,
   SavingsGoalProgress,
   SavingsGoalResponse,
   SavingsGoalUpdate,
+  SavingsProgressData,
   SavingsTransactionCreate,
   SavingsTransactionResponse,
   SavingsTransactionUpdate,
@@ -441,7 +447,7 @@ export const savingsTransactionsApi = {
 
 // ==================== REPORTS APIs ====================
 export const reportsApi = {
-  monthlyExpenditure: async (year: number): Promise<any> => {
+  monthlyExpenditure: async (year: number): Promise<ReportResponse<MonthlyExpenditureData>> => {
     return apiClient.request({
       method: 'GET',
       url: '/api/reports/monthly-expenditure',
@@ -449,7 +455,7 @@ export const reportsApi = {
     });
   },
 
-  budgetAdherence: async (startDate: string, endDate: string): Promise<any> => {
+  budgetAdherence: async (startDate: string, endDate: string): Promise<ReportResponse<BudgetAdherenceData>> => {
     return apiClient.request({
       method: 'GET',
       url: '/api/reports/budget-adherence',
@@ -457,14 +463,14 @@ export const reportsApi = {
     });
   },
 
-  savingsProgress: async (): Promise<any> => {
+  savingsProgress: async (): Promise<ReportResponse<SavingsProgressData>> => {
     return apiClient.request({
       method: 'GET',
       url: '/api/reports/savings-progress',
     });
   },
 
-  categoryDistribution: async (startDate: string, endDate: string): Promise<any> => {
+  categoryDistribution: async (startDate: string, endDate: string): Promise<ReportResponse<CategoryDistributionData>> => {
     return apiClient.request({
       method: 'GET',
       url: '/api/reports/category-distribution',
@@ -472,7 +478,7 @@ export const reportsApi = {
     });
   },
 
-  savingsForecast: async (monthsAhead: number = 12): Promise<any> => {
+  savingsForecast: async (monthsAhead: number = 12): Promise<ReportResponse<SavingsForecastData>> => {
     return apiClient.request({
       method: 'GET',
       url: '/api/reports/savings-forecast',

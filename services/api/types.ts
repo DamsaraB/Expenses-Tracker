@@ -52,6 +52,7 @@ export interface CategoryUpdate {
 }
 
 export interface CategoryResponse {
+  updated_at: string;
   id: number;
   user_id: number;
   name: string;
@@ -289,4 +290,61 @@ export interface GoalContribution {
   total_deposited: number;
   total_withdrawn: number;
   net_contribution: number;
+}
+
+// Add these interfaces to your types file
+
+export interface MonthlyExpenditureData {
+  month_number: number;
+  month_name: string;
+  transaction_count: number;
+  total_amount: number;
+  avg_amount: number;
+  trend: string;
+}
+
+export interface BudgetAdherenceData {
+  budget_id: number;
+  category_name: string;
+  budget_amount: number;
+  spent_amount: number;
+  remaining_amount: number;
+  utilization_percentage: number;
+  status: 'Over Budget' | 'Alert' | 'On Track';
+}
+
+export interface SavingsProgressData {
+  goal_id: number;
+  title: string;
+  target_amount: number;
+  current_amount: number;
+  target_date: string | null;
+  is_achieved: boolean;
+  category: string;
+  priority: string;
+  progress_percentage: number;
+}
+
+export interface CategoryDistributionData {
+  category_name: string;
+  color: string;
+  icon: string;
+  transaction_count: number;
+  total_amount: number;
+  avg_amount: number;
+  percentage_of_total: number;
+}
+
+export interface SavingsForecastData {
+  month_offset: number;
+  forecast_month: string;
+  projected_income: number;
+  projected_expense: number;
+  projected_monthly_savings: number;
+  cumulative_savings: number;
+  trend: 'Positive' | 'Negative';
+}
+
+export interface ReportResponse<T> {
+  data: T[];
 }
