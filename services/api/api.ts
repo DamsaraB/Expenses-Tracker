@@ -36,7 +36,7 @@ import {
 
 // Base URL Configuration
 const BASE_URL = __DEV__ 
-  ? 'http://172.25.197.193:8000' 
+  ? 'http://192.168.42.200:8000' 
   : 'http://172.25.197.193:8000';
 
 // Token storage keys
@@ -167,6 +167,21 @@ export const authApi = {
 
   logout: async (): Promise<void> => {
     await apiClient.clearAuth();
+  },
+
+  updateProfile: async (data: UserUpdate): Promise<UserResponse> => {
+    return apiClient.request({
+      method: 'PUT',
+      url: '/api/users/update',
+      data,
+    });
+  },
+
+  getCurrentUser: async (): Promise<UserResponse> => {
+    return apiClient.request({
+      method: 'GET',
+      url: '/api/users/me', // Add this if you have a get current user endpoint
+    });
   },
 };
 
@@ -465,4 +480,11 @@ export const reportsApi = {
     });
   },
 };
+
+export interface UserUpdate {
+  name?: string;
+  monthly_income?: number;
+  currency?: string;
+  profile_image?: string;
+}
 

@@ -61,68 +61,74 @@ export default function BudgetScreen() {
     try {
       setLoading(true);
       
-      // First load from local SQLite for immediate display
-      const [localBudgetsData, localSummaryData] = await Promise.all([
-        getUserBudgets(user.id),
-        getBudgetSummary(user.id)
-      ]);
+      // Load local data first (defensive - handle empty data)
+      const localBudgets = getUserBudgets(user.id) || [];
+      const localSummary = getBudgetSummary(user.id) || { totalBudget: 0, totalSpent: 0, remaining: 0 };
       
-      setBudgets(localBudgetsData);
-      setSummary(localSummaryData);
+      setBudgets(localBudgets);
+      setSummary(localSummary);
 
-      // Load categories from backend (since they're in Oracle)
-      const [backendCategoriesData, backendBudgetsData] = await Promise.all([
-        categoriesApi.list(),
-        budgetsApi.list()
-      ]);
-      
-      // Map categories to include proper fields
-      const mappedCategories = backendCategoriesData.map(cat => ({
-        id: cat.id,
-        user_id: cat.user_id,
-        name: cat.name,
-        color: cat.color,
-        icon: cat.icon,
-        is_default: cat.is_default,
-        is_active: cat.is_active,
-        created_at: cat.created_at
-      }));
-      setCategories(mappedCategories);
+      // Load categories and backend data
+      try {
+        const [backendCategoriesData, backendBudgetsData] = await Promise.all([
+          categoriesApi.list(),
+          budgetsApi.list()
+        ]);
+        
+        const mappedCategories = backendCategoriesData.map(cat => ({
+          id: cat.id,
+          user_id: cat.user_id,
+          name: cat.name,
+          color: cat.color,
+          icon: cat.icon,
+          is_default: cat.is_default,
+          is_active: cat.is_active,
+          created_at: cat.created_at
+        }));
+        setCategories(mappedCategories);
 
-      // Map backend budgets to include category info
-      const mappedBudgets = backendBudgetsData.map(budget => {
-        const category = mappedCategories.find(c => c.id === budget.category_id);
-        return {
-          ...budget,
-          server_id: budget.server_id ?? budget.id,
-          category_name: category?.name || '',
-          category_color: category?.color || '#e1e5e9',
-          category_icon: category?.icon || '💳',
-          spent: budget.spent_amount ?? budget.spent ?? 0, // <-- Use spent_amount if available
-          title: budget.title ?? (category?.name || 'Budget'), // Ensure title property exists
-        };
-      });
-      setBudgets(mappedBudgets);
+        // Only process if we have valid budgets
+        if (backendBudgetsData && backendBudgetsData.length > 0) {
+          const mappedBudgets = backendBudgetsData.map(budget => {
+            const category = mappedCategories.find(c => c.id === budget.category_id);
+            return {
+              ...budget,
+              server_id: budget.server_id ?? budget.id,
+              category_name: category?.name || '',
+              category_color: category?.color || '#e1e5e9',
+              category_icon: category?.icon || '💳',
+              spent: budget.spent_amount ?? budget.spent ?? 0,
+              title: budget.title ?? (category?.name || 'Budget'),
+            };
+          });
+          setBudgets(mappedBudgets);
 
-      // Calculate summary from backend data
-      const backendSummary = {
-        totalBudget: mappedBudgets.reduce((sum, b) => sum + b.amount, 0),
-        totalSpent: mappedBudgets.reduce((sum, b) => sum + (b.spent || 0), 0),
-        remaining: mappedBudgets.reduce((sum, b) => sum + (b.amount - (b.spent || 0)), 0)
-      };
-      setSummary(backendSummary);
-      
-      // Set default category if available
-      if (mappedCategories.length > 0 && newBudget.categoryId === 0) {
-        setNewBudget(prev => ({ ...prev, categoryId: mappedCategories[0].id }));
+          const backendSummary = {
+            totalBudget: mappedBudgets.reduce((sum, b) => sum + b.amount, 0),
+            totalSpent: mappedBudgets.reduce((sum, b) => sum + (b.spent || 0), 0),
+            remaining: mappedBudgets.reduce((sum, b) => sum + (b.amount - (b.spent || 0)), 0)
+          };
+          setSummary(backendSummary);
+        }
+
+        // Set default category
+        if (mappedCategories.length > 0 && newBudget.categoryId === 0) {
+          setNewBudget(prev => ({ ...prev, categoryId: mappedCategories[0].id }));
+        }
+
+        // Background sync (don't await - let it fail silently)
+        syncService.syncData().catch(error => {
+          console.error('Background sync failed:', error);
+        });
+        
+      } catch (apiError) {
+        console.error('API error (continuing with local data):', apiError);
+        // Continue with local data if API fails
       }
-
-      // Sync in background
-      await syncService.syncData();
       
     } catch (error) {
       console.error('Error loading budget data:', error);
-      Alert.alert('Error', 'Failed to load budget data');
+      // Don't show alert - just continue with empty state
     } finally {
       setLoading(false);
     }

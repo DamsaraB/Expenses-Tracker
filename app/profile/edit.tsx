@@ -2,20 +2,22 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import {
-    Alert,
-    KeyboardAvoidingView,
-    Platform,
-    SafeAreaView,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import { Colors } from '../../constants/theme';
 import { useTheme } from '../../context/ThemeContext';
 import { useUser } from '../../context/UserContext';
+import { updateUserProfile } from '../../services/database'; // Add this import
+import { syncService } from '../../services/syncService'; // Add this import
 
 export default function EditProfileScreen() {
   const { user, setUser } = useUser();
@@ -25,12 +27,14 @@ export default function EditProfileScreen() {
   const [formData, setFormData] = useState({
     name: user?.name || '',
     email: user?.email || '',
+    monthly_income: (user as any)?.monthly_income?.toString() || '',
+    currency: (user as any)?.currency || 'USD',
   });
   const [loading, setLoading] = useState(false);
 
   const handleSave = async () => {
     if (!formData.name.trim() || !formData.email.trim()) {
-      Alert.alert('Error', 'Please fill in all fields');
+      Alert.alert('Error', 'Please fill in all required fields');
       return;
     }
 
@@ -39,21 +43,49 @@ export default function EditProfileScreen() {
       return;
     }
 
+    if (!user) return;
+
     setLoading(true);
     try {
-      // Here you would typically call an API to update the user profile
-      // For now, we'll just update the local state
-      const updatedUser = {
-        ...user,
+      // Update LOCAL database first (like budget/expense pattern)
+      const updateData: any = {
         name: formData.name.trim(),
-        email: formData.email.trim(),
       };
+
+      // Only update monthly_income if it's provided and valid
+      if (formData.monthly_income.trim()) {
+        const income = parseFloat(formData.monthly_income);
+        if (!isNaN(income)) {
+          updateData.monthly_income = income;
+        }
+      }
+
+      // Update currency if changed
+      if (formData.currency !== (user as any)?.currency) {
+        updateData.currency = formData.currency;
+      }
+
+      const result = updateUserProfile(user.id, updateData);
       
-      setUser(updatedUser);
-      Alert.alert('Success', 'Profile updated successfully!', [
-        { text: 'OK', onPress: () => router.back() }
-      ]);
+      if (result.success) {
+        // Update user context with new data
+        const updatedUser = {
+          ...user,
+          ...updateData,
+        };
+        setUser(updatedUser);
+        
+        Alert.alert('Success', 'Profile updated successfully!', [
+          { text: 'OK', onPress: () => router.back() }
+        ]);
+        
+        // Trigger background sync (like budget/expense pattern)
+        syncService.syncData().catch(console.error);
+      } else {
+        Alert.alert('Error', result.error || 'Failed to update profile');
+      }
     } catch (error) {
+      console.error('Profile update error:', error);
       Alert.alert('Error', 'Failed to update profile. Please try again.');
     } finally {
       setLoading(false);
@@ -122,26 +154,24 @@ export default function EditProfileScreen() {
 
             <View style={styles.inputGroup}>
               <Text style={[styles.label, { color: Colors[isDarkMode ? 'dark' : 'light'].text }]}>
-                Email Address
+                Email Address (Read Only)
               </Text>
               <TextInput
                 style={[styles.input, { 
-                  backgroundColor: Colors[isDarkMode ? 'dark' : 'light'].background,
+                  backgroundColor: Colors[isDarkMode ? 'dark' : 'light'].icon + '10',
                   borderColor: Colors[isDarkMode ? 'dark' : 'light'].icon + '30',
-                  color: Colors[isDarkMode ? 'dark' : 'light'].text,
+                  color: Colors[isDarkMode ? 'dark' : 'light'].icon,
                 }]}
                 value={formData.email}
-                onChangeText={(text) => setFormData({ ...formData, email: text })}
                 placeholder="Enter your email address"
                 placeholderTextColor={Colors[isDarkMode ? 'dark' : 'light'].icon}
-                keyboardType="email-address"
-                autoCapitalize="none"
+                editable={false} // Make email read-only
               />
             </View>
 
             <View style={styles.inputGroup}>
               <Text style={[styles.label, { color: Colors[isDarkMode ? 'dark' : 'light'].text }]}>
-                Phone Number (Optional)
+                Monthly Income (Optional)
               </Text>
               <TextInput
                 style={[styles.input, { 
@@ -149,9 +179,28 @@ export default function EditProfileScreen() {
                   borderColor: Colors[isDarkMode ? 'dark' : 'light'].icon + '30',
                   color: Colors[isDarkMode ? 'dark' : 'light'].text,
                 }]}
-                placeholder="Enter your phone number"
+                value={formData.monthly_income}
+                onChangeText={(text) => setFormData({ ...formData, monthly_income: text })}
+                placeholder="Enter your monthly income"
                 placeholderTextColor={Colors[isDarkMode ? 'dark' : 'light'].icon}
-                keyboardType="phone-pad"
+                keyboardType="numeric"
+              />
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={[styles.label, { color: Colors[isDarkMode ? 'dark' : 'light'].text }]}>
+                Currency
+              </Text>
+              <TextInput
+                style={[styles.input, { 
+                  backgroundColor: Colors[isDarkMode ? 'dark' : 'light'].background,
+                  borderColor: Colors[isDarkMode ? 'dark' : 'light'].icon + '30',
+                  color: Colors[isDarkMode ? 'dark' : 'light'].text,
+                }]}
+                value={formData.currency}
+                onChangeText={(text) => setFormData({ ...formData, currency: text })}
+                placeholder="USD"
+                placeholderTextColor={Colors[isDarkMode ? 'dark' : 'light'].icon}
               />
             </View>
           </View>

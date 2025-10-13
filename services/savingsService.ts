@@ -144,6 +144,8 @@ export const addMoneyToGoal = (
     
     db.execSync('COMMIT;');
     
+    console.log('Money added successfully. New current amount:', goal?.current_amount); // Debug log
+    
     return { success: true };
   } catch (error) {
     db.execSync('ROLLBACK;');
@@ -168,5 +170,19 @@ export const getSavingsSummary = (userId: number) => {
   } catch (error) {
     console.error('Get savings summary error:', error);
     return { totalTarget: 0, totalSaved: 0, progress: 0 };
+  }
+};
+
+export const getSavingsTransactionsForGoal = (goalId: number): SavingsTransaction[] => {
+  try {
+    const transactions = db.getAllSync(
+      'SELECT * FROM savings_transactions WHERE goal_id = ? ORDER BY transaction_date DESC',
+      [goalId]
+    ) as SavingsTransaction[];
+    console.log('Fetched transactions for goal', goalId, transactions); // <-- Log to console
+    return transactions;
+  } catch (error) {
+    console.error('Get savings transactions error:', error);
+    return [];
   }
 };
