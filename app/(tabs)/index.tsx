@@ -10,6 +10,8 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { Colors } from '../../constants/theme'; // <-- Add this import
+import { useTheme } from '../../context/ThemeContext'; // <-- Add this import
 import { useUser } from '../../context/UserContext';
 import { getBudgetSummary } from '../../services/budgetService';
 import { getUserExpenses } from '../../services/expenseService';
@@ -38,6 +40,7 @@ type SavingsSummary = {
 
 export default function HomeScreen() {
   const { user } = useUser();
+  const { isDarkMode } = useTheme(); // <-- Use theme context
   const [dashboardData, setDashboardData] = useState<{
     totalExpenses: number;
     recentExpenses: Expense[];
@@ -107,7 +110,7 @@ export default function HomeScreen() {
         router.push('/savings');
         break;
       case 'View Reports':
-        router.push('/profile');
+        router.push('./reports'); // <-- Updated to navigate to reports page
         break;
       default:
         Alert.alert('Quick Action', `${action} feature coming soon!`);
@@ -134,29 +137,33 @@ export default function HomeScreen() {
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={[styles.container, { backgroundColor: Colors[isDarkMode ? 'dark' : 'light'].background }]}>
         <View style={styles.loadingContainer}>
-          <Text>Loading dashboard...</Text>
+          <Text style={{ color: Colors[isDarkMode ? 'dark' : 'light'].text }}>Loading dashboard...</Text>
         </View>
       </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, { backgroundColor: Colors[isDarkMode ? 'dark' : 'light'].background }]}>
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
         {/* Header */}
         <View style={styles.header}>
           <View>
-            <Text style={styles.greeting}>Hello, {user?.name || 'User'}!</Text>
-            <Text style={styles.title}>Personal Finance</Text>
+            <Text style={[styles.greeting, { color: Colors[isDarkMode ? 'dark' : 'light'].icon }]}>{/* Subtle text */}
+              Hello, {user?.name || 'User'}!
+            </Text>
+            <Text style={[styles.title, { color: Colors[isDarkMode ? 'dark' : 'light'].text }]}>
+              Personal Finance
+            </Text>
           </View>
           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
             <TouchableOpacity style={styles.notificationButton}>
-              <Ionicons name="notifications-outline" size={24} color="#666" />
+              <Ionicons name="notifications-outline" size={24} color={Colors[isDarkMode ? 'dark' : 'light'].icon} />
             </TouchableOpacity>
             <TouchableOpacity
-              style={{ marginLeft: 12, padding: 8, backgroundColor: '#007AFF', borderRadius: 8 }}
+              style={{ marginLeft: 12, padding: 8, backgroundColor: Colors[isDarkMode ? 'dark' : 'light'].tint, borderRadius: 8 }}
               onPress={() => router.push('/debug')}
             >
               <Ionicons name="bug-outline" size={20} color="#fff" />
@@ -166,12 +173,12 @@ export default function HomeScreen() {
 
         {/* Salary Card */}
         <View style={styles.summarySection}>
-          <View style={styles.summaryCard}>
+          <View style={[styles.summaryCard, { backgroundColor: Colors[isDarkMode ? 'dark' : 'light'].background, borderColor: Colors[isDarkMode ? 'dark' : 'light'].icon + '20' }]}>
             <View style={styles.summaryHeader}>
-              <Text style={styles.summaryLabel}>Monthly Salary</Text>
-              <Ionicons name="cash" size={20} color="#007AFF" />
+              <Text style={[styles.summaryLabel, { color: Colors[isDarkMode ? 'dark' : 'light'].icon }]}>Monthly Salary</Text>
+              <Ionicons name="cash" size={20} color={Colors[isDarkMode ? 'dark' : 'light'].tint} />
             </View>
-            <Text style={styles.summaryAmount}>
+            <Text style={[styles.summaryAmount, { color: Colors[isDarkMode ? 'dark' : 'light'].text }]}>
               {formatCurrency((user as any)?.monthly_income || 0)}
             </Text>
           </View>
@@ -179,12 +186,12 @@ export default function HomeScreen() {
 
         {/* Summary Cards */}
         <View style={styles.summarySection}>
-          <Text style={styles.sectionTitle}>This Month</Text>
+          <Text style={[styles.sectionTitle, { color: Colors[isDarkMode ? 'dark' : 'light'].text }]}>This Month</Text>
           
           {/* Expenses Card */}
-          <View style={styles.summaryCard}>
+          <View style={[styles.summaryCard, { backgroundColor: Colors[isDarkMode ? 'dark' : 'light'].background, borderColor: Colors[isDarkMode ? 'dark' : 'light'].icon + '20' }]}>
             <View style={styles.summaryHeader}>
-              <Text style={styles.summaryLabel}>Total Expenses</Text>
+              <Text style={[styles.summaryLabel, { color: Colors[isDarkMode ? 'dark' : 'light'].icon }]}>Total Expenses</Text>
               <Ionicons name="trending-down" size={20} color="#F44336" />
             </View>
             <Text style={[styles.summaryAmount, { color: '#F44336' }]}>
@@ -193,49 +200,49 @@ export default function HomeScreen() {
           </View>
 
           {/* Budget Card */}
-          <View style={styles.summaryCard}>
+          <View style={[styles.summaryCard, { backgroundColor: Colors[isDarkMode ? 'dark' : 'light'].background, borderColor: Colors[isDarkMode ? 'dark' : 'light'].icon + '20' }]}>
             <View style={styles.summaryHeader}>
-              <Text style={styles.summaryLabel}>Budget Status</Text>
+              <Text style={[styles.summaryLabel, { color: Colors[isDarkMode ? 'dark' : 'light'].icon }]}>Budget Status</Text>
               <Ionicons name="pie-chart" size={20} color="#4CAF50" />
             </View>
-            <Text style={styles.summaryAmount}>
+            <Text style={[styles.summaryAmount, { color: Colors[isDarkMode ? 'dark' : 'light'].text }]}>
               {formatCurrency(dashboardData.budgetSummary.remaining)}
             </Text>
-            <Text style={styles.summarySubtext}>Remaining</Text>
+            <Text style={[styles.summarySubtext, { color: Colors[isDarkMode ? 'dark' : 'light'].icon }]}>Remaining</Text>
           </View>
 
           {/* Savings Card */}
-          <View style={styles.summaryCard}>
+          <View style={[styles.summaryCard, { backgroundColor: Colors[isDarkMode ? 'dark' : 'light'].background, borderColor: Colors[isDarkMode ? 'dark' : 'light'].icon + '20' }]}>
             <View style={styles.summaryHeader}>
-              <Text style={styles.summaryLabel}>Savings Progress</Text>
-              <Ionicons name="wallet" size={20} color="#2196F3" />
+              <Text style={[styles.summaryLabel, { color: Colors[isDarkMode ? 'dark' : 'light'].icon }]}>Savings Progress</Text>
+              <Ionicons name="wallet" size={20} color={Colors[isDarkMode ? 'dark' : 'light'].tint} />
             </View>
-            <Text style={styles.summaryAmount}>
+            <Text style={[styles.summaryAmount, { color: Colors[isDarkMode ? 'dark' : 'light'].text }]}>
               {formatCurrency(dashboardData.savingsSummary.totalSaved)}
             </Text>
-            <Text style={styles.summarySubtext}>
+            <Text style={[styles.summarySubtext, { color: Colors[isDarkMode ? 'dark' : 'light'].icon }]}>
               {dashboardData.savingsSummary.progress.toFixed(1)}% of goals
             </Text>
           </View>
 
           {/* Budget Progress Card */}
           {dashboardData.budgetSummary.totalBudget > 0 && (
-            <View style={styles.budgetCard}>
+            <View style={[styles.budgetCard, { backgroundColor: Colors[isDarkMode ? 'dark' : 'light'].background, borderColor: Colors[isDarkMode ? 'dark' : 'light'].icon + '20' }]}>
               <View style={styles.budgetHeader}>
-                <Text style={styles.budgetLabel}>Monthly Budget</Text>
-                <Text style={styles.budgetAmount}>
+                <Text style={[styles.budgetLabel, { color: Colors[isDarkMode ? 'dark' : 'light'].icon }]}>Monthly Budget</Text>
+                <Text style={[styles.budgetAmount, { color: Colors[isDarkMode ? 'dark' : 'light'].text }]}>
                   {formatCurrency(dashboardData.budgetSummary.totalSpent)} / {formatCurrency(dashboardData.budgetSummary.totalBudget)}
                 </Text>
               </View>
-              <View style={styles.progressBar}>
+              <View style={[styles.progressBar, { backgroundColor: Colors[isDarkMode ? 'dark' : 'light'].icon + '20' }]}>
                 <View 
                   style={[
                     styles.progressFill, 
-                    { width: `${getBudgetProgress()}%` }
+                    { width: `${getBudgetProgress()}%`, backgroundColor: '#4CAF50' }
                   ]} 
                 />
               </View>
-              <Text style={styles.budgetRemaining}>
+              <Text style={[styles.budgetRemaining, { color: Colors[isDarkMode ? 'dark' : 'light'].icon }]}>
                 {formatCurrency(dashboardData.budgetSummary.remaining)} remaining
               </Text>
             </View>
@@ -244,38 +251,38 @@ export default function HomeScreen() {
 
         {/* Quick Actions */}
         <View style={styles.actionsSection}>
-          <Text style={styles.sectionTitle}>Quick Actions</Text>
+          <Text style={[styles.sectionTitle, { color: Colors[isDarkMode ? 'dark' : 'light'].text }]}>Quick Actions</Text>
           <View style={styles.actionsGrid}>
             <TouchableOpacity 
-              style={styles.actionButton}
+              style={[styles.actionButton, { backgroundColor: Colors[isDarkMode ? 'dark' : 'light'].background, borderColor: Colors[isDarkMode ? 'dark' : 'light'].icon + '20' }]}
               onPress={() => handleQuickAction('Add Expense')}
             >
-              <Ionicons name="add-circle" size={32} color="#007AFF" />
-              <Text style={styles.actionText}>Add Expense</Text>
+              <Ionicons name="add-circle" size={32} color={Colors[isDarkMode ? 'dark' : 'light'].tint} />
+              <Text style={[styles.actionText, { color: Colors[isDarkMode ? 'dark' : 'light'].text }]}>Add Expense</Text>
             </TouchableOpacity>
 
             <TouchableOpacity 
-              style={styles.actionButton}
+              style={[styles.actionButton, { backgroundColor: Colors[isDarkMode ? 'dark' : 'light'].background, borderColor: Colors[isDarkMode ? 'dark' : 'light'].icon + '20' }]}
               onPress={() => handleQuickAction('View Budget')}
             >
               <Ionicons name="pie-chart" size={32} color="#4CAF50" />
-              <Text style={styles.actionText}>View Budget</Text>
+              <Text style={[styles.actionText, { color: Colors[isDarkMode ? 'dark' : 'light'].text }]}>View Budget</Text>
             </TouchableOpacity>
 
             <TouchableOpacity 
-              style={styles.actionButton}
+              style={[styles.actionButton, { backgroundColor: Colors[isDarkMode ? 'dark' : 'light'].background, borderColor: Colors[isDarkMode ? 'dark' : 'light'].icon + '20' }]}
               onPress={() => handleQuickAction('Add Savings Goal')}
             >
               <Ionicons name="rocket-outline" size={32} color="#FF9800" />
-              <Text style={styles.actionText}>Savings Goal</Text>
+              <Text style={[styles.actionText, { color: Colors[isDarkMode ? 'dark' : 'light'].text }]}>Savings Goal</Text>
             </TouchableOpacity>
 
             <TouchableOpacity 
-              style={styles.actionButton}
+              style={[styles.actionButton, { backgroundColor: Colors[isDarkMode ? 'dark' : 'light'].background, borderColor: Colors[isDarkMode ? 'dark' : 'light'].icon + '20' }]}
               onPress={() => handleQuickAction('View Reports')}
             >
               <Ionicons name="analytics" size={32} color="#9C27B0" />
-              <Text style={styles.actionText}>Reports</Text>
+              <Text style={[styles.actionText, { color: Colors[isDarkMode ? 'dark' : 'light'].text }]}>Reports</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -283,30 +290,30 @@ export default function HomeScreen() {
         {/* Recent Transactions */}
         <View style={styles.transactionsSection}>
           <View style={styles.transactionsHeader}>
-            <Text style={styles.sectionTitle}>Recent Transactions</Text>
+            <Text style={[styles.sectionTitle, { color: Colors[isDarkMode ? 'dark' : 'light'].text }]}>Recent Transactions</Text>
             <TouchableOpacity onPress={() => router.push('/expenses')}>
-              <Text style={styles.seeAllText}>See All</Text>
+              <Text style={[styles.seeAllText, { color: Colors[isDarkMode ? 'dark' : 'light'].tint }]}>See All</Text>
             </TouchableOpacity>
           </View>
           
           {dashboardData.recentExpenses.length > 0 ? (
             dashboardData.recentExpenses.map((expense) => (
-              <View key={expense.id} style={styles.transactionItem}>
+              <View key={expense.id} style={[styles.transactionItem, { backgroundColor: Colors[isDarkMode ? 'dark' : 'light'].background, borderColor: Colors[isDarkMode ? 'dark' : 'light'].icon + '20' }]}>
                 <View style={styles.transactionIcon}>
                   <Text style={styles.transactionEmoji}>{expense.category_icon || '💳'}</Text>
                 </View>
                 <View style={styles.transactionDetails}>
-                  <Text style={styles.transactionTitle}>{expense.title}</Text>
-                  <Text style={styles.transactionCategory}>{expense.category_name}</Text>
-                  <Text style={styles.transactionDate}>{new Date(expense.expense_date).toLocaleDateString()}</Text>
+                  <Text style={[styles.transactionTitle, { color: Colors[isDarkMode ? 'dark' : 'light'].text }]}>{expense.title}</Text>
+                  <Text style={[styles.transactionCategory, { color: Colors[isDarkMode ? 'dark' : 'light'].icon }]}>{expense.category_name}</Text>
+                  <Text style={[styles.transactionDate, { color: Colors[isDarkMode ? 'dark' : 'light'].icon }]}>{new Date(expense.expense_date).toLocaleDateString()}</Text>
                 </View>
-                <Text style={styles.transactionAmount}>-{formatCurrency(expense.amount)}</Text>
+                <Text style={[styles.transactionAmount, { color: '#F44336' }]}>-{formatCurrency(expense.amount)}</Text>
               </View>
             ))
           ) : (
             <View style={styles.emptyTransactions}>
-              <Text style={styles.emptyText}>No recent transactions</Text>
-              <Text style={styles.emptySubtext}>Add your first expense to see it here</Text>
+              <Text style={[styles.emptyText, { color: Colors[isDarkMode ? 'dark' : 'light'].text }]}>No recent transactions</Text>
+              <Text style={[styles.emptySubtext, { color: Colors[isDarkMode ? 'dark' : 'light'].icon }]}>Add your first expense to see it here</Text>
             </View>
           )}
         </View>
@@ -319,7 +326,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     paddingTop: 40,
-    backgroundColor: '#f8f9fa',
   },
   loadingContainer: {
     flex: 1,

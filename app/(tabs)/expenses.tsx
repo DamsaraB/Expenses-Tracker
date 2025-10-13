@@ -5,6 +5,7 @@ import {
   FlatList,
   Modal,
   SafeAreaView,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -210,16 +211,22 @@ export default function ExpensesScreen() {
   };
 
   const renderExpenseItem = ({ item }: { item: Expense }) => (
-    <View style={styles.expenseItem}>
+    <View style={[
+      styles.expenseItem,
+      {
+        backgroundColor: Colors[isDarkMode ? 'dark' : 'light'].background,
+        borderColor: Colors[isDarkMode ? 'dark' : 'light'].icon + '20',
+      }
+    ]}>
       <View style={[styles.expenseIcon, { backgroundColor: item.category_color + '20' }]}>
         <Text style={styles.expenseEmoji}>{item.category_icon || '💳'}</Text>
       </View>
       <View style={styles.expenseDetails}>
-        <Text style={styles.expenseTitle}>{item.title}</Text>
-        <Text style={styles.expenseCategory}>{item.category_name}</Text>
-        <Text style={styles.expenseDate}>{new Date(item.expense_date).toLocaleDateString()}</Text>
+        <Text style={[styles.expenseTitle, { color: Colors[isDarkMode ? 'dark' : 'light'].text }]}>{item.title}</Text>
+        <Text style={[styles.expenseCategory, { color: Colors[isDarkMode ? 'dark' : 'light'].icon }]}>{item.category_name}</Text>
+        <Text style={[styles.expenseDate, { color: Colors[isDarkMode ? 'dark' : 'light'].icon }]}>{new Date(item.expense_date).toLocaleDateString()}</Text>
         {item.description && (
-          <Text style={styles.expenseDescription} numberOfLines={1}>{item.description}</Text>
+          <Text style={[styles.expenseDescription, { color: Colors[isDarkMode ? 'dark' : 'light'].icon }]} numberOfLines={1}>{item.description}</Text>
         )}
       </View>
       <View style={styles.expenseAmount}>
@@ -230,7 +237,7 @@ export default function ExpensesScreen() {
           style={styles.actionButton}
           onPress={() => openEditModal(item)}
         >
-          <Ionicons name="create-outline" size={20} color="#007AFF" />
+          <Ionicons name="create-outline" size={20} color={Colors[isDarkMode ? 'dark' : 'light'].tint} />
         </TouchableOpacity>
         <TouchableOpacity
           style={styles.actionButton}
@@ -248,43 +255,66 @@ export default function ExpensesScreen() {
       animationType="slide"
       presentationStyle="pageSheet"
     >
-      <SafeAreaView style={styles.modalContainer}>
-        <View style={styles.modalHeader}>
+      <SafeAreaView style={[styles.modalContainer, { backgroundColor: Colors[isDarkMode ? 'dark' : 'light'].background }]}>
+        <View style={[
+          styles.modalHeader,
+          {
+            backgroundColor: Colors[isDarkMode ? 'dark' : 'light'].background,
+            borderBottomColor: Colors[isDarkMode ? 'dark' : 'light'].icon + '20',
+          }
+        ]}>
           <TouchableOpacity onPress={() => {
             setShowAddModal(false);
             setShowEditModal(false);
             setSelectedExpense(null);
             setNewExpense({ title: '', amount: '', categoryId: categories[0]?.id || 0, description: '' });
           }}>
-            <Text style={styles.cancelButton}>Cancel</Text>
+            <Text style={[styles.cancelButton, { color: Colors[isDarkMode ? 'dark' : 'light'].tint }]}>Cancel</Text>
           </TouchableOpacity>
-          <Text style={styles.modalTitle}>
+          <Text style={[styles.modalTitle, { color: Colors[isDarkMode ? 'dark' : 'light'].text }]}>
             {showAddModal ? 'Add Expense' : 'Edit Expense'}
           </Text>
           <TouchableOpacity
             onPress={showAddModal ? handleAddExpense : handleEditExpense}
             disabled={categories.length === 0 || newExpense.categoryId === 0}
           >
-            <Text style={styles.saveButton}>Save</Text>
+            <Text style={[styles.saveButton, { color: Colors[isDarkMode ? 'dark' : 'light'].tint }]}>Save</Text>
           </TouchableOpacity>
         </View>
+<ScrollView style={styles.modalContent} showsVerticalScrollIndicator={false}>
 
         <View style={styles.modalContent}>
           <View style={styles.inputContainer}>
-            <Text style={styles.inputLabel}>Title *</Text>
+            <Text style={[styles.inputLabel, { color: Colors[isDarkMode ? 'dark' : 'light'].text }]}>Title *</Text>
             <TextInput
-              style={styles.input}
+              style={[
+                styles.input,
+                {
+                  backgroundColor: Colors[isDarkMode ? 'dark' : 'light'].background,
+                  borderColor: Colors[isDarkMode ? 'dark' : 'light'].icon + '30',
+                  color: Colors[isDarkMode ? 'dark' : 'light'].text,
+                }
+              ]}
               placeholder="Enter expense title"
+              placeholderTextColor={Colors[isDarkMode ? 'dark' : 'light'].icon}
               value={newExpense.title}
               onChangeText={(text) => setNewExpense({ ...newExpense, title: text })}
             />
           </View>
 
           <View style={styles.inputContainer}>
-            <Text style={styles.inputLabel}>Amount *</Text>
+            <Text style={[styles.inputLabel, { color: Colors[isDarkMode ? 'dark' : 'light'].text }]}>Amount *</Text>
             <TextInput
-              style={styles.input}
+              style={[
+                styles.input,
+                {
+                  backgroundColor: Colors[isDarkMode ? 'dark' : 'light'].background,
+                  borderColor: Colors[isDarkMode ? 'dark' : 'light'].icon + '30',
+                  color: Colors[isDarkMode ? 'dark' : 'light'].text,
+                }
+              ]}
               placeholder="Enter amount"
+              placeholderTextColor={Colors[isDarkMode ? 'dark' : 'light'].icon}
               value={newExpense.amount}
               onChangeText={(text) => setNewExpense({ ...newExpense, amount: text })}
               keyboardType="numeric"
@@ -292,35 +322,45 @@ export default function ExpensesScreen() {
           </View>
 
           <View style={styles.inputContainer}>
-            <Text style={styles.inputLabel}>Category</Text>
+            <Text style={[styles.inputLabel, { color: Colors[isDarkMode ? 'dark' : 'light'].text }]}>Category</Text>
             <View style={styles.categoryGrid}>
-              {categories.map((category) => (
-                <TouchableOpacity
-                  key={category.id}
-                  style={[
-                    styles.categoryItem,
-                    newExpense.categoryId === category.id && styles.selectedCategory,
-                    { borderColor: category.color }
-                  ]}
-                  onPress={() => setNewExpense({ ...newExpense, categoryId: category.id })}
-                >
-                  <Text style={styles.categoryEmoji}>{category.icon}</Text>
-                  <Text style={[
-                    styles.categoryName,
-                    newExpense.categoryId === category.id && styles.selectedCategoryText
-                  ]}>
-                    {category.name}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
+                          {categories.map((category) => (
+                            <TouchableOpacity
+                              key={category.id}
+                              style={[
+                                styles.categoryItem,
+                                newExpense.categoryId === category.id && styles.selectedCategory,
+                                { borderColor: category.color, backgroundColor: Colors[isDarkMode ? 'dark' : 'light'].background }
+                              ]}
+                              onPress={() => setNewExpense({ ...newExpense, categoryId: category.id })}
+                            >
+                              <Text style={styles.categoryEmoji}>{category.icon}</Text>
+                              <Text style={[
+                                styles.categoryName,
+                                { color: Colors[isDarkMode ? 'dark' : 'light'].text },
+                                newExpense.categoryId === category.id && styles.selectedCategoryText
+                              ]}>
+                                {category.name}
+                              </Text>
+                            </TouchableOpacity>
+                          ))}
+                        </View>
           </View>
 
           <View style={styles.inputContainer}>
-            <Text style={styles.inputLabel}>Description</Text>
+            <Text style={[styles.inputLabel, { color: Colors[isDarkMode ? 'dark' : 'light'].text }]}>Description</Text>
             <TextInput
-              style={[styles.input, styles.textArea]}
+              style={[
+                styles.input,
+                styles.textArea,
+                {
+                  backgroundColor: Colors[isDarkMode ? 'dark' : 'light'].background,
+                  borderColor: Colors[isDarkMode ? 'dark' : 'light'].icon + '30',
+                  color: Colors[isDarkMode ? 'dark' : 'light'].text,
+                }
+              ]}
               placeholder="Enter description (optional)"
+              placeholderTextColor={Colors[isDarkMode ? 'dark' : 'light'].icon}
               value={newExpense.description}
               onChangeText={(text) => setNewExpense({ ...newExpense, description: text })}
               multiline
@@ -328,15 +368,16 @@ export default function ExpensesScreen() {
             />
           </View>
         </View>
+</ScrollView>
       </SafeAreaView>
-    </Modal>
+    </Modal>  
   );
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={[styles.container, { backgroundColor: Colors[isDarkMode ? 'dark' : 'light'].background }]}>
         <View style={styles.loadingContainer}>
-          <Text>Loading expenses...</Text>
+          <Text style={{ color: Colors[isDarkMode ? 'dark' : 'light'].text }}>Loading expenses...</Text>
         </View>
       </SafeAreaView>
     );
@@ -347,18 +388,18 @@ export default function ExpensesScreen() {
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: Colors[isDarkMode ? 'dark' : 'light'].background }]}>
       <View style={styles.header}>
-        <Text style={styles.title}>Expenses</Text>
+        <Text style={[styles.title, { color: Colors[isDarkMode ? 'dark' : 'light'].text }]}>Expenses</Text>
         <TouchableOpacity
-          style={styles.addButton}
+          style={[styles.addButton, { backgroundColor: Colors[isDarkMode ? 'dark' : 'light'].tint }]}
           onPress={() => setShowAddModal(true)}
         >
           <Ionicons name="add" size={24} color="#fff" />
         </TouchableOpacity>
       </View>
 
-      <View style={styles.summaryCard}>
-        <Text style={styles.summaryLabel}>Total Expenses</Text>
-        <Text style={styles.summaryAmount}>
+      <View style={[styles.summaryCard, { backgroundColor: Colors[isDarkMode ? 'dark' : 'light'].background, borderColor: Colors[isDarkMode ? 'dark' : 'light'].icon + '20' }]}>
+        <Text style={[styles.summaryLabel, { color: Colors[isDarkMode ? 'dark' : 'light'].icon }]}>Total Expenses</Text>
+        <Text style={[styles.summaryAmount, { color: '#F44336' }]}>
           {formatCurrency(totalExpenses)}
         </Text>
       </View>
@@ -371,9 +412,9 @@ export default function ExpensesScreen() {
         showsVerticalScrollIndicator={false}
         ListEmptyComponent={
           <View style={styles.emptyState}>
-            <Ionicons name="receipt-outline" size={64} color="#ccc" />
-            <Text style={styles.emptyText}>No expenses yet</Text>
-            <Text style={styles.emptySubtext}>Add your first expense to get started</Text>
+            <Ionicons name="receipt-outline" size={64} color={Colors[isDarkMode ? 'dark' : 'light'].icon} />
+            <Text style={[styles.emptyText, { color: Colors[isDarkMode ? 'dark' : 'light'].text }]}>No expenses yet</Text>
+            <Text style={[styles.emptySubtext, { color: Colors[isDarkMode ? 'dark' : 'light'].icon }]}>Add your first expense to get started</Text>
           </View>
         }
       />
@@ -383,7 +424,7 @@ export default function ExpensesScreen() {
   );
 }
 
-// Add the new styles
+// Update styles to use theme colors
 const styles = StyleSheet.create({
   loadingContainer: {
     flex: 1,
@@ -398,7 +439,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     paddingTop: 40,
-    backgroundColor: '#f8f9fa',
   },
   header: {
     flexDirection: 'row',
@@ -410,10 +450,8 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 28,
     fontWeight: 'bold',
-    color: '#1a1a1a',
   },
   addButton: {
-    backgroundColor: '#007AFF',
     width: 44,
     height: 44,
     borderRadius: 22,
@@ -421,27 +459,20 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   summaryCard: {
-    backgroundColor: '#fff',
     marginHorizontal: 20,
     marginBottom: 16,
     padding: 20,
     borderRadius: 16,
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    borderWidth: 1,
   },
   summaryLabel: {
     fontSize: 16,
-    color: '#666',
     marginBottom: 8,
   },
   summaryAmount: {
     fontSize: 28,
     fontWeight: 'bold',
-    color: '#F44336',
   },
   expenseList: {
     flex: 1,
@@ -450,10 +481,12 @@ const styles = StyleSheet.create({
   expenseItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#fff',
     borderRadius: 12,
     padding: 16,
     marginBottom: 12,
+    borderWidth: 1,
+    borderColor: Colors.light.icon + '20', // Will be overridden in render
+    backgroundColor: Colors.light.background, // Will be overridden in render
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,
@@ -477,17 +510,13 @@ const styles = StyleSheet.create({
   expenseTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#1a1a1a',
-    marginBottom: 4,
   },
   expenseCategory: {
     fontSize: 14,
-    color: '#666',
     marginBottom: 2,
   },
   expenseDate: {
     fontSize: 12,
-    color: '#999',
   },
   expenseAmount: {
     marginRight: 12,
@@ -512,18 +541,15 @@ const styles = StyleSheet.create({
   emptyText: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#666',
     marginTop: 16,
   },
   emptySubtext: {
     fontSize: 14,
-    color: '#999',
     marginTop: 4,
     textAlign: 'center',
   },
   modalContainer: {
     flex: 1,
-    backgroundColor: '#f8f9fa',
   },
   modalHeader: {
     flexDirection: 'row',
@@ -531,22 +557,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 20,
     paddingVertical: 16,
-    backgroundColor: '#fff',
     borderBottomWidth: 1,
-    borderBottomColor: '#e1e5e9',
   },
   cancelButton: {
     fontSize: 16,
-    color: '#007AFF',
   },
   modalTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#1a1a1a',
   },
   saveButton: {
     fontSize: 16,
-    color: '#007AFF',
     fontWeight: '600',
   },
   modalContent: {
@@ -559,18 +580,14 @@ const styles = StyleSheet.create({
   inputLabel: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#1a1a1a',
     marginBottom: 8,
   },
   input: {
-    backgroundColor: '#fff',
     borderWidth: 1,
-    borderColor: '#e1e5e9',
     borderRadius: 12,
     paddingHorizontal: 16,
     paddingVertical: 14,
     fontSize: 16,
-    color: '#1a1a1a',
   },
   textArea: {
     height: 80,
@@ -582,14 +599,12 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   categoryItem: {
-    backgroundColor: '#fff',
     borderRadius: 12,
     padding: 12,
     alignItems: 'center',
     width: '48%',
     marginBottom: 8,
     borderWidth: 2,
-    borderColor: '#e1e5e9',
   },
   selectedCategory: {
     backgroundColor: '#f0f8ff',
@@ -600,11 +615,9 @@ const styles = StyleSheet.create({
   },
   categoryName: {
     fontSize: 12,
-    color: '#666',
     textAlign: 'center',
   },
   selectedCategoryText: {
-    color: '#007AFF',
     fontWeight: '600',
   },
 });

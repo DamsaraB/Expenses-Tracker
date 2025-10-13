@@ -277,33 +277,57 @@ export default function ProfileScreen() {
         animationType="slide"
         presentationStyle="pageSheet"
       >
-        <SafeAreaView style={[styles.modalContainer, { backgroundColor: Colors[isDarkMode ? 'dark' : 'light'].background }]}>
-          <View style={[styles.modalHeader, { borderBottomColor: Colors[isDarkMode ? 'dark' : 'light'].icon + '20' }]}>
+        <SafeAreaView style={[
+          styles.modalContainer,
+          { backgroundColor: Colors[isDarkMode ? 'dark' : 'light'].background }
+        ]}>
+          <View style={[
+            styles.modalHeader,
+            {
+              backgroundColor: Colors[isDarkMode ? 'dark' : 'light'].background,
+              borderBottomColor: Colors[isDarkMode ? 'dark' : 'light'].icon + '20',
+            }
+          ]}>
             <TouchableOpacity onPress={() => {
               setShowSalaryModal(false);
               setMonthlySalary(user?.monthly_income?.toString() || '');
             }}>
-              <Text style={[styles.cancelButton, { color: Colors[isDarkMode ? 'dark' : 'light'].tint }]}>Cancel</Text>
+              <Text style={[
+                styles.cancelButton,
+                { color: Colors[isDarkMode ? 'dark' : 'light'].tint }
+              ]}>Cancel</Text>
             </TouchableOpacity>
-            <Text style={[styles.modalTitle, { color: Colors[isDarkMode ? 'dark' : 'light'].text }]}>
+            <Text style={[
+              styles.modalTitle,
+              { color: Colors[isDarkMode ? 'dark' : 'light'].text }
+            ]}>
               Monthly Salary
             </Text>
             <TouchableOpacity onPress={handleSalarySave}>
-              <Text style={[styles.saveButton, { color: Colors[isDarkMode ? 'dark' : 'light'].tint }]}>Save</Text>
+              <Text style={[
+                styles.saveButton,
+                { color: Colors[isDarkMode ? 'dark' : 'light'].tint }
+              ]}>Save</Text>
             </TouchableOpacity>
           </View>
 
           <View style={styles.modalContent}>
             <View style={styles.inputContainer}>
-              <Text style={[styles.inputLabel, { color: Colors[isDarkMode ? 'dark' : 'light'].text }]}>
+              <Text style={[
+                styles.inputLabel,
+                { color: Colors[isDarkMode ? 'dark' : 'light'].text }
+              ]}>
                 Monthly Salary *
               </Text>
               <TextInput
-                style={[styles.input, {
-                  backgroundColor: Colors[isDarkMode ? 'dark' : 'light'].background,
-                  borderColor: Colors[isDarkMode ? 'dark' : 'light'].icon + '30',
-                  color: Colors[isDarkMode ? 'dark' : 'light'].text,
-                }]}
+                style={[
+                  styles.input,
+                  {
+                    backgroundColor: Colors[isDarkMode ? 'dark' : 'light'].background,
+                    borderColor: Colors[isDarkMode ? 'dark' : 'light'].icon + '30',
+                    color: Colors[isDarkMode ? 'dark' : 'light'].text,
+                  }
+                ]}
                 placeholder="Enter your monthly salary"
                 placeholderTextColor={Colors[isDarkMode ? 'dark' : 'light'].icon}
                 value={monthlySalary}
@@ -312,11 +336,23 @@ export default function ProfileScreen() {
               />
             </View>
 
-            <View style={styles.salaryInfo}>
-              <Text style={[styles.infoTitle, { color: Colors[isDarkMode ? 'dark' : 'light'].text }]}>
+            <View style={[
+              styles.salaryInfo,
+              {
+                backgroundColor: Colors[isDarkMode ? 'dark' : 'light'].background,
+                borderColor: Colors[isDarkMode ? 'dark' : 'light'].icon + '20',
+              }
+            ]}>
+              <Text style={[
+                styles.infoTitle,
+                { color: Colors[isDarkMode ? 'dark' : 'light'].text }
+              ]}>
                 Why track your salary?
               </Text>
-              <Text style={[styles.infoText, { color: Colors[isDarkMode ? 'dark' : 'light'].icon }]}>
+              <Text style={[
+                styles.infoText,
+                { color: Colors[isDarkMode ? 'dark' : 'light'].icon }
+              ]}>
                 • Better budget planning and expense tracking{'\n'}
                 • Calculate savings rate and financial goals{'\n'}
                 • Get insights into your spending patterns{'\n'}
