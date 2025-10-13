@@ -15,9 +15,6 @@ const ensureDatabaseInitialized = () => {
   }
 };
 
-// (moved) ensureDatabaseInitialized() will be invoked after function declarations
-
-// Add this function to drop and recreate database
 export const resetDatabase = () => {
   try {
     console.log('Resetting database...');
