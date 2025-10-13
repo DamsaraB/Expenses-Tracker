@@ -696,6 +696,7 @@ export default function BudgetScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    paddingTop: 40,
   },
   loadingContainer: {
     flex: 1,

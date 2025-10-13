@@ -1,4 +1,5 @@
 import { DarkTheme, DefaultTheme, ThemeProvider as NavigationThemeProvider } from '@react-navigation/native';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import React, { useEffect } from 'react';
@@ -38,8 +39,10 @@ function RootLayoutContent() {
 
 export default function RootLayout() {
   return (
+    <SafeAreaProvider>
     <ThemeProvider>
       <RootLayoutContent />
     </ThemeProvider>
+    </SafeAreaProvider>
   );
 }

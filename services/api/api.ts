@@ -36,7 +36,7 @@ import {
 
 // Base URL Configuration
 const BASE_URL = __DEV__ 
-  ? 'http://192.168.42.200:8000' 
+  ? 'http://192.168.1.9:8000' 
   : 'http://172.25.197.193:8000';
 
 // Token storage keys
