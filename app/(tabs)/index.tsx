@@ -60,9 +60,7 @@ export default function HomeScreen() {
     }
   }, [user]);
 
-  // Re-render when salary changes without full reload
   useEffect(() => {
-    // no-op: dependency to trigger render when monthly income updates
   }, [user?.monthly_income]);
 
   const loadDashboardData = async () => {
@@ -71,7 +69,7 @@ export default function HomeScreen() {
     try {
       setLoading(true);
       const [expenses, budgetSummary, savingsSummary] = await Promise.all([
-        getUserExpenses(user.id, 5), // Get last 5 expenses
+        getUserExpenses(user.id, 5), 
         getBudgetSummary(user.id),
         getSavingsSummary(user.id)
       ]);
