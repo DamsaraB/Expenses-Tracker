@@ -10,13 +10,13 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { Colors } from '../../constants/theme'; // <-- Add this import
-import { useTheme } from '../../context/ThemeContext'; // <-- Add this import
+import { Colors } from '../../constants/theme';
+import { useTheme } from '../../context/ThemeContext';
 import { useUser } from '../../context/UserContext';
+import { expensesApi, incomeApi } from '../../services/api/api'; // Add imports
 import { getBudgetSummary } from '../../services/budgetService';
-import { getMonthlyRemainingSalary } from '../../services/database';
 import { getUserExpenses } from '../../services/expenseService';
-import { getSavingsSummary } from '../../services/savingsService';
+import { getSavingsSummary, getSavingsTransactionsForGoal, getUserSavingsGoals } from '../../services/savingsService';
 
 type Expense = {
   id: string;
@@ -39,22 +39,35 @@ type SavingsSummary = {
   progress: number;
 };
 
+// Add type for savings transaction:
+type SavingsTransaction = {
+  id: number;
+  goal_id: number;
+  amount: number;
+  transaction_type: string;
+  transaction_date: string;
+  description?: string;
+};
+
 export default function HomeScreen() {
   const { user } = useUser();
-  const { isDarkMode } = useTheme(); // <-- Use theme context
+  const { isDarkMode } = useTheme();
   const [dashboardData, setDashboardData] = useState<{
     totalExpenses: number;
+    totalIncome: number; // Add totalIncome
     recentExpenses: Expense[];
     budgetSummary: BudgetSummary;
     savingsSummary: SavingsSummary;
      remainingSalary: number;
   }>({
     totalExpenses: 0,
+    totalIncome: 0, // Initialize totalIncome
     recentExpenses: [],
     budgetSummary: { totalBudget: 0, totalSpent: 0, remaining: 0 },
      savingsSummary: { totalTarget: 0, totalSaved: 0, progress: 0 },
      remainingSalary: 0,
   });
+  const [recentSavings, setRecentSavings] = useState<SavingsTransaction[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -71,22 +84,48 @@ export default function HomeScreen() {
     
     try {
       setLoading(true);
-      const [expenses, budgetSummary, savingsSummary] = await Promise.all([
-        getUserExpenses(user.id, 5), 
+      
+      // Get current month date range
+      const currentDate = new Date();
+      const currentMonth = currentDate.toISOString().substr(0, 7);
+      const startOfMonth = `${currentMonth}-01`;
+      const endOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0)
+        .toISOString().substr(0, 10);
+
+      const [expenses, budgetSummary, savingsSummary, monthlyExpenses, monthlyIncome] = await Promise.all([
+        getUserExpenses(user.id, 5),
         getBudgetSummary(user.id),
-        getSavingsSummary(user.id)
+        getSavingsSummary(user.id),
+        // Fetch monthly expenses from backend
+        expensesApi.list({ 
+          user_id: user.id,
+          start_date: startOfMonth,
+          end_date: endOfMonth 
+        }).catch(() => []),
+        // Fetch monthly income from backend
+        incomeApi.total(startOfMonth, endOfMonth).catch(() => ({ total_income: 0 }))
       ]);
 
-      const currentMonth = new Date().toISOString().substr(0, 7);
-      const monthlyExpenses = expenses.filter(expense => 
-        expense.expense_date.startsWith(currentMonth)
-      );
-      const totalExpenses = monthlyExpenses.reduce((sum, expense) => sum + expense.amount, 0);
+      // Calculate total expenses
+      const totalExpenses = monthlyExpenses.reduce((sum: number, expense: any) => sum + expense.amount, 0);
 
-      const remainingSalary = await getMonthlyRemainingSalary(user.id, currentMonth);
+      // Get recent expenses
+      // const expenses = await getUserExpenses(user.id, 5);
+
+      // Get recent savings transactions (from all goals)
+      const goals = getUserSavingsGoals(user.id) || [];
+      let savingsTx: SavingsTransaction[] = [];
+      for (const goal of goals) {
+        const txs = getSavingsTransactionsForGoal(goal.id) || [];
+        savingsTx = savingsTx.concat(txs);
+      }
+      // Sort and take latest 5
+      savingsTx = savingsTx.sort((a, b) => new Date(b.transaction_date).getTime() - new Date(a.transaction_date).getTime()).slice(0, 5);
+      setRecentSavings(savingsTx);
 
       setDashboardData({
         totalExpenses,
+        totalIncome: monthlyIncome.total_income, // Set totalIncome
         recentExpenses: expenses.map(expense => ({
           ...expense,
           id: expense.id.toString()
@@ -97,6 +136,26 @@ export default function HomeScreen() {
       });
     } catch (error) {
       console.error('Error loading dashboard data:', error);
+      // Fallback to local data
+      try {
+        const localExpenses = await getUserExpenses(user.id, 5);
+        const currentMonth = new Date().toISOString().substr(0, 7);
+        const monthlyExpenses = localExpenses.filter(expense => 
+          expense.expense_date.startsWith(currentMonth)
+        );
+        const totalExpenses = monthlyExpenses.reduce((sum, expense) => sum + expense.amount, 0);
+
+        setDashboardData(prev => ({
+          ...prev,
+          totalExpenses,
+          recentExpenses: localExpenses.map(expense => ({
+            ...expense,
+            id: expense.id.toString()
+          })),
+        }));
+      } catch (localError) {
+        console.error('Error loading local data:', localError);
+      }
     } finally {
       setLoading(false);
     }
@@ -114,7 +173,10 @@ export default function HomeScreen() {
         router.push('/savings');
         break;
       case 'View Reports':
-        router.push('./reports'); // <-- Updated to navigate to reports page
+        router.push('./reports');
+        break;
+      case 'Manage Income': // Add new action
+        router.push('/profile/income');
         break;
       default:
         Alert.alert('Quick Action', `${action} feature coming soon!`);
@@ -125,7 +187,7 @@ export default function HomeScreen() {
     try {
       return new Intl.NumberFormat('en-IN', {
         style: 'currency',
-        currency: 'Rs',
+        currency: 'INR',
         maximumFractionDigits: 2,
       }).format(amount);
     } catch {
@@ -155,7 +217,7 @@ export default function HomeScreen() {
         {/* Header */}
         <View style={styles.header}>
           <View>
-            <Text style={[styles.greeting, { color: Colors[isDarkMode ? 'dark' : 'light'].icon }]}>{/* Subtle text */}
+            <Text style={[styles.greeting, { color: Colors[isDarkMode ? 'dark' : 'light'].icon }]}>
               Hello, {user?.name || 'User'}!
             </Text>
             <Text style={[styles.title, { color: Colors[isDarkMode ? 'dark' : 'light'].text }]}>
@@ -193,6 +255,17 @@ export default function HomeScreen() {
         <View style={styles.summarySection}>
           <Text style={[styles.sectionTitle, { color: Colors[isDarkMode ? 'dark' : 'light'].text }]}>This Month</Text>
           
+          {/* Income Card - NEW */}
+          <View style={[styles.summaryCard, { backgroundColor: Colors[isDarkMode ? 'dark' : 'light'].background, borderColor: Colors[isDarkMode ? 'dark' : 'light'].icon + '20' }]}>
+            <View style={styles.summaryHeader}>
+              <Text style={[styles.summaryLabel, { color: Colors[isDarkMode ? 'dark' : 'light'].icon }]}>Total Income</Text>
+              <Ionicons name="trending-up" size={20} color="#4CAF50" />
+            </View>
+            <Text style={[styles.summaryAmount, { color: '#4CAF50' }]}>
+              +{formatCurrency(dashboardData.totalIncome)}
+            </Text>
+          </View>
+
           {/* Expenses Card */}
           <View style={[styles.summaryCard, { backgroundColor: Colors[isDarkMode ? 'dark' : 'light'].background, borderColor: Colors[isDarkMode ? 'dark' : 'light'].icon + '20' }]}>
             <View style={styles.summaryHeader}>
@@ -200,7 +273,7 @@ export default function HomeScreen() {
               <Ionicons name="trending-down" size={20} color="#F44336" />
             </View>
             <Text style={[styles.summaryAmount, { color: '#F44336' }]}>
-              {formatCurrency(dashboardData.totalExpenses)}
+              -{formatCurrency(dashboardData.totalExpenses)}
             </Text>
           </View>
 
@@ -268,6 +341,14 @@ export default function HomeScreen() {
 
             <TouchableOpacity 
               style={[styles.actionButton, { backgroundColor: Colors[isDarkMode ? 'dark' : 'light'].background, borderColor: Colors[isDarkMode ? 'dark' : 'light'].icon + '20' }]}
+              onPress={() => handleQuickAction('Manage Income')}
+            >
+              <Ionicons name="trending-up" size={32} color="#4CAF50" />
+              <Text style={[styles.actionText, { color: Colors[isDarkMode ? 'dark' : 'light'].text }]}>Manage Income</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity 
+              style={[styles.actionButton, { backgroundColor: Colors[isDarkMode ? 'dark' : 'light'].background, borderColor: Colors[isDarkMode ? 'dark' : 'light'].icon + '20' }]}
               onPress={() => handleQuickAction('View Budget')}
             >
               <Ionicons name="pie-chart" size={32} color="#4CAF50" />
@@ -301,24 +382,56 @@ export default function HomeScreen() {
             </TouchableOpacity>
           </View>
           
-          {dashboardData.recentExpenses.length > 0 ? (
-            dashboardData.recentExpenses.map((expense) => (
-              <View key={expense.id} style={[styles.transactionItem, { backgroundColor: Colors[isDarkMode ? 'dark' : 'light'].background, borderColor: Colors[isDarkMode ? 'dark' : 'light'].icon + '20' }]}>
-                <View style={styles.transactionIcon}>
-                  <Text style={styles.transactionEmoji}>{expense.category_icon || '💳'}</Text>
+          {/* Combine and sort recent expenses and savings transactions */}
+          {dashboardData.recentExpenses.length > 0 || recentSavings.length > 0 ? (
+            [
+              ...dashboardData.recentExpenses.map(expense => ({
+                ...expense,
+                type: 'expense',
+                date: expense.expense_date,
+              })),
+              ...recentSavings.map(tx => ({
+                ...tx,
+                type: 'savings',
+                date: tx.transaction_date,
+              }))
+            ]
+              .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+              .slice(0, 5)
+              .map(item => (
+                <View key={item.id + item.type} style={[styles.transactionItem, { backgroundColor: Colors[isDarkMode ? 'dark' : 'light'].background, borderColor: Colors[isDarkMode ? 'dark' : 'light'].icon + '20' }]}>
+                  <View style={styles.transactionIcon}>
+                    <Text style={styles.transactionEmoji}>
+                      {item.type === 'expense' && 'category_icon' in item ? (item.category_icon || '💳') : '💰'}
+                    </Text>
+                  </View>
+                  <View style={styles.transactionDetails}>
+                    <Text style={[styles.transactionTitle, { color: Colors[isDarkMode ? 'dark' : 'light'].text }]}>
+                      {'title' in item ? item.title : item.description || 'Savings'}
+                    </Text>
+                    <Text style={[styles.transactionCategory, { color: Colors[isDarkMode ? 'dark' : 'light'].icon }]}>
+                      {item.type === 'expense' && 'category_name' in item
+                        ? item.category_name
+                        : item.type === 'savings' && 'transaction_type' in item
+                        ? item.transaction_type
+                        : ''}
+                    </Text>
+                    <Text style={[styles.transactionDate, { color: Colors[isDarkMode ? 'dark' : 'light'].icon }]}>
+                      {new Date(item.date).toLocaleDateString()}
+                    </Text>
+                  </View>
+                  <Text style={[
+                    styles.transactionAmount,
+                    { color: item.type === 'expense' ? '#F44336' : '#4CAF50' }
+                  ]}>
+                    {item.type === 'expense' ? '-' : '+'}{formatCurrency(item.amount)}
+                  </Text>
                 </View>
-                <View style={styles.transactionDetails}>
-                  <Text style={[styles.transactionTitle, { color: Colors[isDarkMode ? 'dark' : 'light'].text }]}>{expense.title}</Text>
-                  <Text style={[styles.transactionCategory, { color: Colors[isDarkMode ? 'dark' : 'light'].icon }]}>{expense.category_name}</Text>
-                  <Text style={[styles.transactionDate, { color: Colors[isDarkMode ? 'dark' : 'light'].icon }]}>{new Date(expense.expense_date).toLocaleDateString()}</Text>
-                </View>
-                <Text style={[styles.transactionAmount, { color: '#F44336' }]}>-{formatCurrency(expense.amount)}</Text>
-              </View>
-            ))
+              ))
           ) : (
             <View style={styles.emptyTransactions}>
               <Text style={[styles.emptyText, { color: Colors[isDarkMode ? 'dark' : 'light'].text }]}>No recent transactions</Text>
-              <Text style={[styles.emptySubtext, { color: Colors[isDarkMode ? 'dark' : 'light'].icon }]}>Add your first expense to see it here</Text>
+              <Text style={[styles.emptySubtext, { color: Colors[isDarkMode ? 'dark' : 'light'].icon }]}>Add your first expense or savings transaction to see it here</Text>
             </View>
           )}
         </View>
