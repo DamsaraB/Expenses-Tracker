@@ -1,6 +1,8 @@
 import { authApi } from '@/services/api/api';
+import { authApi } from '@/services/api/api';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import React, { useEffect, useState } from 'react';
 import React, { useEffect, useState } from 'react';
 import {
   Alert,
@@ -15,15 +17,18 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Colors } from '../../constants/theme';
 import { useTheme } from '../../context/ThemeContext';
 import { useUser } from '../../context/UserContext';
+import { updateUserProfile } from '../../services/database';
 import { updateUserProfile } from '../../services/database';
 
 export default function ProfileScreen() {
   const { user, logout, setUser } = useUser();
   const { isDarkMode, toggleTheme } = useTheme();
   const router = useRouter();
+
 
   const [showSalaryModal, setShowSalaryModal] = useState(false);
   const [monthlySalary, setMonthlySalary] = useState('');
@@ -121,7 +126,12 @@ export default function ProfileScreen() {
 
   const handleSalaryUpdate = () => {
     setMonthlySalary(user?.monthly_income ? user.monthly_income.toString() : '');
+    setMonthlySalary(user?.monthly_income ? user.monthly_income.toString() : '');
     setShowSalaryModal(true);
+  };
+
+  const handleIncomeManagement = () => {
+    router.push('/profile/income');
   };
 
   const handleIncomeManagement = () => {
@@ -137,7 +147,32 @@ export default function ProfileScreen() {
     try {
       if (!user) return;
 
+
       const amount = parseFloat(monthlySalary);
+
+      // Update LOCAL database first
+      const localResult = await updateUserProfile(user.id, {
+        monthly_income: amount,
+      });
+
+      if (localResult.success) {
+        // Update user context immediately for UI
+        const updatedUser = {
+          ...user,
+          monthly_income: amount,
+        };
+        setUser(updatedUser);
+
+        // Sync with backend
+        await authApi.updateProfile({
+          name: user.name,
+          monthly_income: amount,
+          currency: user.currency || 'INR',
+        });
+
+        // Fetch latest user profile from backend
+        await fetchUserProfile();
+
 
       // Update LOCAL database first
       const localResult = await updateUserProfile(user.id, {
@@ -166,7 +201,10 @@ export default function ProfileScreen() {
         setShowSalaryModal(false);
       } else {
         Alert.alert('Error', localResult.error || 'Failed to update salary');
+        Alert.alert('Error', localResult.error || 'Failed to update salary');
       }
+    } catch (error) {
+      console.error('Salary update error:', error);
     } catch (error) {
       console.error('Salary update error:', error);
       Alert.alert('Error', 'Failed to update salary');
@@ -177,6 +215,7 @@ export default function ProfileScreen() {
     try {
       return new Intl.NumberFormat('en-IN', {
         style: 'currency',
+        currency: 'INR',
         currency: 'INR',
         maximumFractionDigits: 2,
       }).format(amount);
@@ -198,9 +237,16 @@ export default function ProfileScreen() {
       subtitle: 'Manage your income sources',
     },
     {
+      title: 'Income Management',
+      icon: 'trending-up-outline',
+      onPress: handleIncomeManagement,
+      subtitle: 'Manage your income sources',
+    },
+    {
       title: 'Monthly Salary',
       icon: 'cash-outline',
       onPress: handleSalaryUpdate,
+      subtitle: user?.monthly_income ? formatCurrency(user.monthly_income) : 'Not set',
       subtitle: user?.monthly_income ? formatCurrency(user.monthly_income) : 'Not set',
     },
     {
@@ -270,6 +316,10 @@ export default function ProfileScreen() {
                 name={isDarkMode ? "moon" : "sunny"}
                 size={24}
                 color={Colors[isDarkMode ? 'dark' : 'light'].tint}
+              <Ionicons
+                name={isDarkMode ? "moon" : "sunny"}
+                size={24}
+                color={Colors[isDarkMode ? 'dark' : 'light'].tint}
               />
               <Text style={[styles.settingText, { color: Colors[isDarkMode ? 'dark' : 'light'].text }]}>
                 Dark Mode
@@ -300,6 +350,10 @@ export default function ProfileScreen() {
                   name={item.icon as any}
                   size={24}
                   color={Colors[isDarkMode ? 'dark' : 'light'].tint}
+                <Ionicons
+                  name={item.icon as any}
+                  size={24}
+                  color={Colors[isDarkMode ? 'dark' : 'light'].tint}
                 />
                 <View style={styles.settingTextContainer}>
                   <Text style={[styles.settingText, { color: Colors[isDarkMode ? 'dark' : 'light'].text }]}>
@@ -312,6 +366,10 @@ export default function ProfileScreen() {
                   )}
                 </View>
               </View>
+              <Ionicons
+                name="chevron-forward"
+                size={20}
+                color={Colors[isDarkMode ? 'dark' : 'light'].icon}
               <Ionicons
                 name="chevron-forward"
                 size={20}
@@ -355,10 +413,26 @@ export default function ProfileScreen() {
               borderBottomColor: Colors[isDarkMode ? 'dark' : 'light'].icon + '20',
             }
           ]}>
+        <SafeAreaView style={[
+          styles.modalContainer,
+          { backgroundColor: Colors[isDarkMode ? 'dark' : 'light'].background }
+        ]}>
+          <View style={[
+            styles.modalHeader,
+            {
+              backgroundColor: Colors[isDarkMode ? 'dark' : 'light'].background,
+              borderBottomColor: Colors[isDarkMode ? 'dark' : 'light'].icon + '20',
+            }
+          ]}>
             <TouchableOpacity onPress={() => {
               setShowSalaryModal(false);
               setMonthlySalary(user?.monthly_income?.toString() || '');
+              setMonthlySalary(user?.monthly_income?.toString() || '');
             }}>
+              <Text style={[
+                styles.cancelButton,
+                { color: Colors[isDarkMode ? 'dark' : 'light'].tint }
+              ]}>Cancel</Text>
               <Text style={[
                 styles.cancelButton,
                 { color: Colors[isDarkMode ? 'dark' : 'light'].tint }
@@ -368,9 +442,17 @@ export default function ProfileScreen() {
               styles.modalTitle,
               { color: Colors[isDarkMode ? 'dark' : 'light'].text }
             ]}>
+            <Text style={[
+              styles.modalTitle,
+              { color: Colors[isDarkMode ? 'dark' : 'light'].text }
+            ]}>
               Monthly Salary
             </Text>
             <TouchableOpacity onPress={handleSalarySave}>
+              <Text style={[
+                styles.saveButton,
+                { color: Colors[isDarkMode ? 'dark' : 'light'].tint }
+              ]}>Save</Text>
               <Text style={[
                 styles.saveButton,
                 { color: Colors[isDarkMode ? 'dark' : 'light'].tint }
@@ -384,9 +466,21 @@ export default function ProfileScreen() {
                 styles.inputLabel,
                 { color: Colors[isDarkMode ? 'dark' : 'light'].text }
               ]}>
+              <Text style={[
+                styles.inputLabel,
+                { color: Colors[isDarkMode ? 'dark' : 'light'].text }
+              ]}>
                 Monthly Salary *
               </Text>
               <TextInput
+                style={[
+                  styles.input,
+                  {
+                    backgroundColor: Colors[isDarkMode ? 'dark' : 'light'].background,
+                    borderColor: Colors[isDarkMode ? 'dark' : 'light'].icon + '30',
+                    color: Colors[isDarkMode ? 'dark' : 'light'].text,
+                  }
+                ]}
                 style={[
                   styles.input,
                   {
@@ -414,8 +508,23 @@ export default function ProfileScreen() {
                 styles.infoTitle,
                 { color: Colors[isDarkMode ? 'dark' : 'light'].text }
               ]}>
+            <View style={[
+              styles.salaryInfo,
+              {
+                backgroundColor: Colors[isDarkMode ? 'dark' : 'light'].background,
+                borderColor: Colors[isDarkMode ? 'dark' : 'light'].icon + '20',
+              }
+            ]}>
+              <Text style={[
+                styles.infoTitle,
+                { color: Colors[isDarkMode ? 'dark' : 'light'].text }
+              ]}>
                 Why track your salary?
               </Text>
+              <Text style={[
+                styles.infoText,
+                { color: Colors[isDarkMode ? 'dark' : 'light'].icon }
+              ]}>
               <Text style={[
                 styles.infoText,
                 { color: Colors[isDarkMode ? 'dark' : 'light'].icon }
@@ -436,6 +545,7 @@ export default function ProfileScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    paddingTop: 40,
     paddingTop: 40,
   },
   scrollView: {

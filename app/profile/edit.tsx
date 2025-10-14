@@ -27,7 +27,8 @@ export default function EditProfileScreen() {
   const [formData, setFormData] = useState({
     name: user?.name || '',
     email: user?.email || '',
-    phone: (user as any)?.phone || '',
+    monthly_income: (user as any)?.monthly_income?.toString() || '',
+    currency: (user as any)?.currency || 'USD',
   });
   const [loading, setLoading] = useState(false);
 
@@ -75,9 +76,6 @@ export default function EditProfileScreen() {
       } else {
         Alert.alert('Error', localResult.error || 'Failed to update profile');
       }
-      Alert.alert('Success', 'Profile updated successfully!', [
-        { text: 'OK', onPress: () => router.back() }
-      ]);
     } catch (error) {
       console.error('Profile update error:', error);
       Alert.alert('Error', 'Failed to update profile. Please try again.');
@@ -195,9 +193,6 @@ export default function EditProfileScreen() {
                 onChangeText={(text) => setFormData({ ...formData, currency: text })}
                 placeholder="USD"
                 placeholderTextColor={Colors[isDarkMode ? 'dark' : 'light'].icon}
-                keyboardType="phone-pad"
-              value={formData.phone}
-              onChangeText={(text) => setFormData({ ...formData, phone: text })}
               />
             </View>
           </View>

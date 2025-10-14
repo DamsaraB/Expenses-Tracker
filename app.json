@@ -40,15 +40,7 @@
           }
         }
       ],
-      [
-        "expo-sqlite",
-        {
-          "useNewConnectionLogic": true
-        }
-      ]
-    ],
-    "assetBundlePatterns": [
-      "**/*"
+      "expo-secure-store"
     ],
     "experiments": {
       "typedRoutes": true,

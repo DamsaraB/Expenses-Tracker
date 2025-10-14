@@ -61,6 +61,10 @@ export const initDatabase = () => {
         sync_status TEXT DEFAULT 'pending',         
         server_id INTEGER,                          
         last_modified DATETIME DEFAULT CURRENT_TIMESTAMP
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        sync_status TEXT DEFAULT 'pending',         
+        server_id INTEGER,                          
+        last_modified DATETIME DEFAULT CURRENT_TIMESTAMP
       );
     `);
 
@@ -89,6 +93,9 @@ export const initDatabase = () => {
         sync_status TEXT DEFAULT 'pending',         
         server_id INTEGER,                          
         last_modified DATETIME DEFAULT CURRENT_TIMESTAMP,
+        sync_status TEXT DEFAULT 'pending',         
+        server_id INTEGER,                          
+        last_modified DATETIME DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE,
         UNIQUE(user_id, name)
       );
@@ -104,9 +111,13 @@ export const initDatabase = () => {
         amount REAL NOT NULL CHECK(amount > 0),
         description TEXT,
         expense_date DATE NOT NULL,
+        expense_date DATE NOT NULL,
         payment_method TEXT DEFAULT 'cash',
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        sync_status TEXT DEFAULT 'pending',         
+        server_id INTEGER,                          
+        last_modified DATETIME DEFAULT CURRENT_TIMESTAMP,
         sync_status TEXT DEFAULT 'pending',         
         server_id INTEGER,                          
         last_modified DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -122,6 +133,7 @@ export const initDatabase = () => {
         user_id INTEGER NOT NULL,
         category_id INTEGER NOT NULL,
         title TEXT NOT NULL,
+        title TEXT NOT NULL,
         amount REAL NOT NULL CHECK(amount > 0),
         period TEXT NOT NULL DEFAULT 'monthly',
         start_date DATE NOT NULL,
@@ -130,6 +142,9 @@ export const initDatabase = () => {
         is_active BOOLEAN DEFAULT 1,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        sync_status TEXT DEFAULT 'pending',         
+        server_id INTEGER,                          
+        last_modified DATETIME DEFAULT CURRENT_TIMESTAMP,
         sync_status TEXT DEFAULT 'pending',         
         server_id INTEGER,                          
         last_modified DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -158,6 +173,9 @@ export const initDatabase = () => {
         sync_status TEXT DEFAULT 'pending',         
         server_id INTEGER,                          
         last_modified DATETIME DEFAULT CURRENT_TIMESTAMP,
+        sync_status TEXT DEFAULT 'pending',         
+        server_id INTEGER,                          
+        last_modified DATETIME DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
       );
     `);
@@ -172,7 +190,11 @@ export const initDatabase = () => {
         transaction_type TEXT NOT NULL CHECK(transaction_type IN ('deposit', 'withdrawal')),
         description TEXT,
         transaction_date DATE NOT NULL,
+        transaction_date DATE NOT NULL,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        sync_status TEXT DEFAULT 'pending',         
+        server_id INTEGER,                          
+        last_modified DATETIME DEFAULT CURRENT_TIMESTAMP,
         sync_status TEXT DEFAULT 'pending',         
         server_id INTEGER,                          
         last_modified DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -191,10 +213,14 @@ export const initDatabase = () => {
         source TEXT NOT NULL,
         description TEXT,
         income_date DATE NOT NULL,
+        income_date DATE NOT NULL,
         is_recurring BOOLEAN DEFAULT 0,
         recurring_frequency TEXT,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        sync_status TEXT DEFAULT 'pending',         
+        server_id INTEGER,                          
+        last_modified DATETIME DEFAULT CURRENT_TIMESTAMP,
         sync_status TEXT DEFAULT 'pending',         
         server_id INTEGER,                          
         last_modified DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -203,6 +229,7 @@ export const initDatabase = () => {
     `);
 
     // Create indexes for better performance
+    db.execSync(`CREATE INDEX IF NOT EXISTS idx_expenses_user_date ON expenses (user_id, expense_date DESC);`);
     db.execSync(`CREATE INDEX IF NOT EXISTS idx_expenses_user_date ON expenses (user_id, expense_date DESC);`);
     db.execSync(`CREATE INDEX IF NOT EXISTS idx_expenses_category ON expenses (category_id);`);
     db.execSync(`CREATE INDEX IF NOT EXISTS idx_budgets_user_active ON budgets (user_id, is_active);`);
@@ -368,6 +395,8 @@ export const loginUser = async (email: string, password: string) => {
   }
 };
 
+// Get user by ID (basic info)
+export const getUserBasicInfoById = async (userId: number) => {
 // Get user by ID (basic info)
 export const getUserBasicInfoById = async (userId: number) => {
   try {
