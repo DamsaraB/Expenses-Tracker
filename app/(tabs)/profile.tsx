@@ -113,7 +113,7 @@ export default function ProfileScreen() {
         await authApi.updateProfile({
           name: user.name,
           monthly_income: amount,
-          currency: user.currency || 'INR',
+          currency: user.currency || 'Rs',
         });
 
         // Fetch latest user profile from backend

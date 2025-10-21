@@ -138,11 +138,11 @@ export default function BudgetScreen() {
     try {
       return new Intl.NumberFormat('en-IN', {
         style: 'currency',
-        currency: 'INR',
+        currency: 'Rs',
         maximumFractionDigits: 2,
       }).format(amount);
     } catch {
-      return `₹${Number(amount || 0).toLocaleString('en-IN', { maximumFractionDigits: 2, minimumFractionDigits: 2 })}`;
+      return `Rs${Number(amount || 0).toLocaleString('en-IN', { maximumFractionDigits: 2, minimumFractionDigits: 2 })}`;
     }
   };
 

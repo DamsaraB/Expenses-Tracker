@@ -186,7 +186,7 @@ export default function HomeScreen() {
     try {
       return new Intl.NumberFormat('en-IN', {
         style: 'currency',
-        currency: 'INR',
+        currency: 'Rs',
         maximumFractionDigits: 2,
       }).format(amount);
     } catch {
