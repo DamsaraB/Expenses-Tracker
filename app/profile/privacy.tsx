@@ -2,13 +2,13 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import React from 'react';
 import {
-    Linking,
-    SafeAreaView,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  Linking,
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import { Colors } from '../../constants/theme';
 import { useTheme } from '../../context/ThemeContext';
@@ -22,7 +22,7 @@ export default function PrivacyScreen() {
   };
 
   const handleContactSupport = () => {
-    Linking.openURL('mailto:support@expensetracker.com');
+    Linking.openURL('mailto:info.damsara@gmail.com');
   };
 
   return (
@@ -132,6 +132,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 16,
     borderBottomWidth: 1,
+    marginTop: 25,
   },
   title: {
     fontSize: 18,

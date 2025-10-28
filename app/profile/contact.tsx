@@ -2,17 +2,17 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import {
-    Alert,
-    KeyboardAvoidingView,
-    Linking,
-    Platform,
-    SafeAreaView,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  Alert,
+  KeyboardAvoidingView,
+  Linking,
+  Platform,
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import { Colors } from '../../constants/theme';
 import { useTheme } from '../../context/ThemeContext';
@@ -69,23 +69,23 @@ export default function ContactScreen() {
   };
 
   const handleCallSupport = () => {
-    Linking.openURL('tel:+1234567890');
+    Linking.openURL('tel:+94 076 306 1868');
   };
 
   const handleEmailSupport = () => {
-    Linking.openURL('mailto:support@expensetracker.com');
+    Linking.openURL('mailto:info.damsara@gmail.com');
   };
 
   const contactOptions = [
     {
       title: 'Email Support',
-      subtitle: 'support@expensetracker.com',
+      subtitle: 'info.damsara@gmail.com',
       icon: 'mail-outline',
       onPress: handleEmailSupport,
     },
     {
       title: 'Phone Support',
-      subtitle: '+1 (234) 567-890',
+      subtitle: '+94 076 306 1868',
       icon: 'call-outline',
       onPress: handleCallSupport,
     },
@@ -307,6 +307,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 16,
     borderBottomWidth: 1,
+    marginTop: 25,
   },
   title: {
     fontSize: 18,

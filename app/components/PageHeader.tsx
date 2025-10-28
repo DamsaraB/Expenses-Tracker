@@ -63,7 +63,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   actionButton: {
-    backgroundColor: '#42B7FF',
+    backgroundColor: '#058fffff',
     borderRadius: 20,
     width: 32,
     height: 32,
