@@ -10,14 +10,12 @@ export default function RootLayout() {
       try {
         // For development: reset database to apply new schema
         if (__DEV__) {
-          console.log('Development mode: resetting database...');
           resetDatabase(); // This will drop and recreate all tables
         } else {
           // For production: just initialize
           initDatabase();
         }
       } catch (error) {
-        console.error('Database setup error:', error);
       }
     };
 

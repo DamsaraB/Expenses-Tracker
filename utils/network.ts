@@ -1,5 +1,5 @@
 import NetInfo from '@react-native-community/netinfo';
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 
 // Network status types
 export interface NetworkState {
@@ -128,7 +128,6 @@ export class OfflineQueue {
         await item.request();
         this.queue.shift(); // Remove from queue on success
       } catch (error) {
-        console.error(`Failed to process queued request ${item.id}:`, error);
         // Keep in queue to retry later
         throw error;
       }

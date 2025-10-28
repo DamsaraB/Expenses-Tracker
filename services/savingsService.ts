@@ -49,7 +49,6 @@ export const addSavingsGoal = (
     
     return { success: true, goalId: result.lastInsertRowId };
   } catch (error) {
-    console.error('Add savings goal error:', error);
     return { success: false, error: 'Failed to add savings goal' };
   }
 };
@@ -64,7 +63,6 @@ export const getUserSavingsGoals = (userId: number): SavingsGoal[] => {
     
     return result || [];
   } catch (error) {
-    console.error('Get savings goals error:', error);
     return [];
   }
 };
@@ -87,7 +85,6 @@ export const updateSavingsGoal = (
     
     return { success: true };
   } catch (error) {
-    console.error('Update savings goal error:', error);
     return { success: false, error: 'Failed to update savings goal' };
   }
 };
@@ -102,7 +99,6 @@ export const deleteSavingsGoal = (goalId: number, userId: number) => {
     
     return { success: true };
   } catch (error) {
-    console.error('Delete savings goal error:', error);
     return { success: false, error: 'Failed to delete savings goal' };
   }
 };
@@ -144,12 +140,9 @@ export const addMoneyToGoal = (
     
     db.execSync('COMMIT;');
     
-    console.log('Money added successfully. New current amount:', goal?.current_amount); // Debug log
-    
     return { success: true };
   } catch (error) {
     db.execSync('ROLLBACK;');
-    console.error('Add money to goal error:', error);
     return { success: false, error: 'Failed to add money to goal' };
   }
 };
@@ -168,7 +161,6 @@ export const getSavingsSummary = (userId: number) => {
       progress: result?.total_target > 0 ? (result?.total_saved / result?.total_target) * 100 : 0
     };
   } catch (error) {
-    console.error('Get savings summary error:', error);
     return { totalTarget: 0, totalSaved: 0, progress: 0 };
   }
 };
@@ -179,10 +171,9 @@ export const getSavingsTransactionsForGoal = (goalId: number): SavingsTransactio
       'SELECT * FROM savings_transactions WHERE goal_id = ? ORDER BY transaction_date DESC',
       [goalId]
     ) as SavingsTransaction[];
-    console.log('Fetched transactions for goal', goalId, transactions); // <-- Log to console
     return transactions;
   } catch (error) {
-    console.error('Get savings transactions error:', error);
+    
     return [];
   }
 };

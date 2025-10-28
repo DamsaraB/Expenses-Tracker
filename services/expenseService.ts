@@ -31,7 +31,6 @@ export const getUserCategories = (userId: number): ExpenseCategory[] => {
     
     return result || [];
   } catch (error) {
-    console.error('Get categories error:', error);
     return [];
   }
 };
@@ -53,7 +52,6 @@ export const addExpense = (
     );
     return { success: true, expenseId: result.lastInsertRowId };
   } catch (error) {
-    console.error('Add expense error:', error);
     return { success: false, error: 'Failed to add expense' };
   }
 };
@@ -83,7 +81,6 @@ export const getUserExpenses = (userId: number, limit?: number): Expense[] => {
     const result = db.getAllSync(query, [userId]) as Expense[];
     return result || [];
   } catch (error) {
-    console.error('Get expenses error:', error);
     return [];
   }
 };
@@ -105,7 +102,6 @@ export const updateExpense = (
     
     return { success: true };
   } catch (error) {
-    console.error('Update expense error:', error);
     return { success: false, error: 'Failed to update expense' };
   }
 };
@@ -120,7 +116,6 @@ export const deleteExpense = (expenseId: number, userId: number) => {
     
     return { success: true };
   } catch (error) {
-    console.error('Delete expense error:', error);
     return { success: false, error: 'Failed to delete expense' };
   }
 };
@@ -137,7 +132,6 @@ export const getMonthlyExpenseSummary = (userId: number) => {
     
     return result?.total || 0;
   } catch (error) {
-    console.error('Get monthly summary error:', error);
     return 0;
   }
 };
@@ -164,7 +158,7 @@ export const getExpenseBreakdown = (userId: number, startDate?: string, endDate?
     }
     
     if (endDate) {
-      query += ' AND e.expense_ date <= ?';
+      query += ' AND e.expense_date <= ?';
       params.push(endDate);
     }
     
@@ -173,7 +167,6 @@ export const getExpenseBreakdown = (userId: number, startDate?: string, endDate?
     const result = db.getAllSync(query, params) as any[];
     return result || [];
   } catch (error) {
-    console.error('Get expense breakdown error:', error);
     return [];
   }
 };

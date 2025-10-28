@@ -1,5 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
-import React, { useEffect, useState } from 'react';
+import { useFocusEffect } from 'expo-router';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   Alert,
   FlatList,
@@ -28,6 +29,7 @@ import {
   updateSavingsGoal
 } from '../../services/savingsService';
 import { syncService } from '../../services/syncService';
+import PageHeader from '../components/PageHeader';
 
 export default function SavingsScreen() {
   const { user } = useUser();
@@ -56,6 +58,15 @@ export default function SavingsScreen() {
     }
   }, [user]);
 
+  // Real-time updates: Reload data whenever screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      if (user) {
+        loadData();
+      }
+    }, [user])
+  );
+
   const loadData = async () => {
     if (!user) return;
     
@@ -77,12 +88,9 @@ export default function SavingsScreen() {
       setGoalTransactions(transactionsMap);
       
       // Background sync (don't await - let it fail silently)
-      syncService.syncData().catch(error => {
-        console.error('Background sync failed:', error);
-      });
+      syncService.syncData().catch(() => {});
       
     } catch (error) {
-      console.error('Error loading savings data:', error);
       // Don't show alert - just continue with empty state
     } finally {
       setLoading(false);
@@ -96,15 +104,7 @@ export default function SavingsScreen() {
   };
 
   const formatCurrency = (amount: number) => {
-    try {
-      return new Intl.NumberFormat('en-IN', {
-        style: 'currency',
-        currency: 'Rs',
-        maximumFractionDigits: 2,
-      }).format(amount);
-    } catch {
-      return `Rs. ${Number(amount || 0).toLocaleString('en-IN', { maximumFractionDigits: 2, minimumFractionDigits: 2 })}`;
-    }
+    return `Rs. ${Number(amount || 0).toLocaleString('en-LK', { maximumFractionDigits: 2, minimumFractionDigits: 2 })}`;
   };
 
   const getProgressPercentage = (current: number, target: number) => {
@@ -572,15 +572,12 @@ export default function SavingsScreen() {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: Colors[isDarkMode ? 'dark' : 'light'].background }]}>
-      <View style={styles.header}>
-        <Text style={[styles.title, { color: Colors[isDarkMode ? 'dark' : 'light'].text }]}>Savings Goals</Text>
-        <TouchableOpacity
-          style={styles.addButton}
-          onPress={() => setShowAddModal(true)}
-        >
-          <Ionicons name="add" size={24} color="#fff" />
-        </TouchableOpacity>
-      </View>
+      <PageHeader
+        title={"SAVINGS"}
+        leftIconName="trophy-outline"
+        rightIconName="add"
+        onRightPress={() => setShowAddModal(true)}
+      />
 
       <ScrollView 
         style={styles.scrollView} 
@@ -648,35 +645,6 @@ export default function SavingsScreen() {
             </View>
           )}
         </View>
-
-        {/* Tips Section */}
-        <View style={styles.tipsSection}>
-          <Text style={[styles.sectionTitle, { color: Colors[isDarkMode ? 'dark' : 'light'].text }]}>
-            Savings Tips
-          </Text>
-          <View style={[styles.tipCard, { backgroundColor: Colors[isDarkMode ? 'dark' : 'light'].background, borderColor: Colors[isDarkMode ? 'dark' : 'light'].icon + '20' }]}>
-            <Ionicons name="bulb" size={24} color="#FF9800" />
-            <View style={styles.tipContent}>
-              <Text style={[styles.tipTitle, { color: Colors[isDarkMode ? 'dark' : 'light'].text }]}>
-                Set Realistic Goals
-              </Text>
-              <Text style={[styles.tipDescription, { color: Colors[isDarkMode ? 'dark' : 'light'].icon }]}>
-                Break down large goals into smaller, achievable milestones.
-              </Text>
-            </View>
-          </View>
-          <View style={[styles.tipCard, { backgroundColor: Colors[isDarkMode ? 'dark' : 'light'].background, borderColor: Colors[isDarkMode ? 'dark' : 'light'].icon + '20' }]}>
-            <Ionicons name="calendar" size={24} color="#2196F3" />
-            <View style={styles.tipContent}>
-              <Text style={[styles.tipTitle, { color: Colors[isDarkMode ? 'dark' : 'light'].text }]}>
-                Automate Savings
-              </Text>
-              <Text style={[styles.tipDescription, { color: Colors[isDarkMode ? 'dark' : 'light'].icon }]}>
-                Set up automatic transfers to reach your goals faster.
-              </Text>
-            </View>
-          </View>
-        </View>
       </ScrollView>
 
       {renderAddEditModal()}
@@ -688,7 +656,7 @@ export default function SavingsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    paddingTop: 40,
+    paddingTop: 35,
     backgroundColor: '#f8f9fa',
   },
   loadingContainer: {
@@ -714,8 +682,8 @@ const styles = StyleSheet.create({
   },
   addButton: {
     backgroundColor: '#007AFF',
-    width: 44,
-    height: 44,
+    width: 35,
+    height: 35,
     borderRadius: 22,
     alignItems: 'center',
     justifyContent: 'center',

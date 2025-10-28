@@ -38,7 +38,6 @@ export const addBudget = (
     
     return { success: true, budgetId: result.lastInsertRowId };
   } catch (error) {
-    console.error('Add budget error:', error);
     return { success: false, error: 'Failed to add budget' };
   }
 };
@@ -71,7 +70,6 @@ export const getUserBudgets = (userId: number): Budget[] => {
     const result = db.getAllSync(query, [userId]) as Budget[];
     return result || [];
   } catch (error) {
-    console.error('Get budgets error:', error);
     return [];
   }
 };
@@ -91,7 +89,6 @@ export const updateBudget = (
     
     return { success: true };
   } catch (error) {
-    console.error('Update budget error:', error);
     return { success: false, error: 'Failed to update budget' };
   }
 };
@@ -106,7 +103,6 @@ export const deleteBudget = (budgetId: number, userId: number) => {
     
     return { success: true };
   } catch (error) {
-    console.error('Delete budget error:', error);
     return { success: false, error: 'Failed to delete budget' };
   }
 };
@@ -139,7 +135,6 @@ export const getBudgetSummary = (userId: number) => {
       remaining: (result?.total_budget || 0) - (result?.total_spent || 0)
     };
   } catch (error) {
-    console.error('Get budget summary error:', error);
     return { totalBudget: 0, totalSpent: 0, remaining: 0 };
   }
 };

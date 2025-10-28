@@ -2,16 +2,16 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import React, { useState } from 'react';
 import {
-  Alert,
-  KeyboardAvoidingView,
-  Platform,
-  SafeAreaView,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
+    Alert,
+    KeyboardAvoidingView,
+    Platform,
+    SafeAreaView,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from 'react-native';
 import { authApi } from '../services/api/api'; // Import backend API
 import { SignupFormData } from '../types';
@@ -107,7 +107,6 @@ export default function SignupScreen() {
         Alert.alert('Registration Failed', 'Failed to create account. Please try again.');
       }
     } catch (error: any) {
-      console.error('Signup error:', error);
       Alert.alert('Error', error?.message || 'Registration failed. Please check your connection and try again.');
     } finally {
       setIsLoading(false);
@@ -354,7 +353,8 @@ const styles = StyleSheet.create({
   },
   backButton: {
     alignSelf: 'flex-start',
-    marginBottom: 20,
+    marginBottom: 15,
+    marginTop: 20,
     padding: 4,
   },
   title: {

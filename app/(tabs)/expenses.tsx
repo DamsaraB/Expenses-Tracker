@@ -1,29 +1,31 @@
 import { Ionicons } from '@expo/vector-icons';
-import React, { useEffect, useState } from 'react';
+import { useFocusEffect } from 'expo-router';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
-  Alert,
-  FlatList,
-  Modal,
-  SafeAreaView,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
+    Alert,
+    FlatList,
+    Modal,
+    SafeAreaView,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from 'react-native';
 import { Colors } from '../../constants/theme';
 import { useTheme } from '../../context/ThemeContext';
 import { useUser } from '../../context/UserContext';
 import { categoriesApi, expensesApi } from '../../services/api/api'; // Import backend API
 import {
-  addExpense,
-  deleteExpense,
-  Expense,
-  ExpenseCategory,
-  updateExpense
+    addExpense,
+    deleteExpense,
+    Expense,
+    ExpenseCategory,
+    updateExpense
 } from '../../services/expenseService';
 import { syncService } from '../../services/syncService'; // Add this import
+import PageHeader from '../components/PageHeader';
 
 export default function ExpensesScreen() {
   const { user } = useUser();
@@ -46,6 +48,15 @@ export default function ExpensesScreen() {
       loadData();
     }
   }, [user]);
+
+  // Real-time updates: Reload data whenever screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      if (user) {
+        loadData();
+      }
+    }, [user])
+  );
 
   // After loading categories, set a valid default:
   useEffect(() => {
@@ -88,7 +99,6 @@ export default function ExpensesScreen() {
         setNewExpense(prev => ({ ...prev, categoryId: mappedCategories[0].id }));
       }
     } catch (error) {
-      console.error('Error loading data:', error);
       Alert.alert('Error', 'Failed to load expenses');
     } finally {
       setLoading(false);
@@ -96,15 +106,7 @@ export default function ExpensesScreen() {
   };
 
   const formatCurrency = (amount: number) => {
-    try {
-      return new Intl.NumberFormat('en-IN', {
-        style: 'currency',
-        currency: 'Rs.',
-        maximumFractionDigits: 2,
-      }).format(amount);
-    } catch {
-      return `Rs. ${Number(amount || 0).toLocaleString('en-IN', { maximumFractionDigits: 2, minimumFractionDigits: 2 })}`;
-    }
+    return `Rs. ${Number(amount || 0).toLocaleString('en-LK', { maximumFractionDigits: 2, minimumFractionDigits: 2 })}`;
   };
 
   const handleAddExpense = async () => {
@@ -387,15 +389,12 @@ export default function ExpensesScreen() {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: Colors[isDarkMode ? 'dark' : 'light'].background }]}>
-      <View style={styles.header}>
-        <Text style={[styles.title, { color: Colors[isDarkMode ? 'dark' : 'light'].text }]}>Expenses</Text>
-        <TouchableOpacity
-          style={[styles.addButton, { backgroundColor: Colors[isDarkMode ? 'dark' : 'light'].tint }]}
-          onPress={() => setShowAddModal(true)}
-        >
-          <Ionicons name="add" size={24} color="#fff" />
-        </TouchableOpacity>
-      </View>
+      <PageHeader
+        title={"EXPENSES"}
+        leftIconName="receipt-outline"
+        rightIconName="add"
+        onRightPress={() => setShowAddModal(true)}
+      />
 
       <View style={[styles.summaryCard, { backgroundColor: Colors[isDarkMode ? 'dark' : 'light'].background, borderColor: Colors[isDarkMode ? 'dark' : 'light'].icon + '20' }]}>
         <Text style={[styles.summaryLabel, { color: Colors[isDarkMode ? 'dark' : 'light'].icon }]}>Total Expenses</Text>

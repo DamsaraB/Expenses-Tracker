@@ -86,7 +86,6 @@ export default function LoginScreen() {
         setIsLoading(false);
         return;
       } catch (backendError) {
-        console.log('Backend login failed, trying local:', backendError);
       }
 
       // 2. Fallback to local SQLite login
@@ -310,6 +309,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: '#1a1a1a',
+    marginBottom: 4,
   },
   forgotPassword: {
     fontSize: 14,

@@ -58,7 +58,6 @@ export default function DebugScreen() {
             count
           });
         } catch (error) {
-          console.error(`Error loading ${tableName}:`, error);
           allData.push({
             name: tableName,
             data: [],
@@ -69,7 +68,6 @@ export default function DebugScreen() {
 
       setTableData(allData);
     } catch (error) {
-      console.error('Error loading database data:', error);
       Alert.alert('Error', 'Failed to load database data');
     } finally {
       setLoading(false);
@@ -101,7 +99,6 @@ export default function DebugScreen() {
               Alert.alert('Success', `All data from ${tableName} has been cleared`);
               await loadAllTableData();
             } catch (error) {
-              console.error(`Error clearing ${tableName}:`, error);
               Alert.alert('Error', `Failed to clear ${tableName}`);
             }
           }
@@ -112,8 +109,7 @@ export default function DebugScreen() {
 
   const exportTableData = (table: TableData) => {
     const jsonData = JSON.stringify(table.data, null, 2);
-    console.log(`\n=== ${table.name.toUpperCase()} TABLE DATA ===`);
-    console.log(jsonData);
+    
     Alert.alert('Exported', `${table.name} data has been logged to console`);
   };
 
@@ -205,10 +201,8 @@ export default function DebugScreen() {
             if (!query) return;
             try {
               const result = db.getAllSync(query);
-              console.log('Query Result:', result);
               Alert.alert('Success', `Query executed. Check console for results. Found ${result.length} rows.`);
             } catch (error) {
-              console.error('Query error:', error);
               Alert.alert('Error', `Query failed: ${error}`);
             }
           }

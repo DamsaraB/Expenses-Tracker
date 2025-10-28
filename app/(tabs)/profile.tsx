@@ -18,6 +18,7 @@ import { Colors } from '../../constants/theme';
 import { useTheme } from '../../context/ThemeContext';
 import { useUser } from '../../context/UserContext';
 import { updateUserProfile } from '../../services/database';
+import PageHeader from '../components/PageHeader';
 
 export default function ProfileScreen() {
   const { user, logout, setUser } = useUser();
@@ -36,7 +37,6 @@ export default function ProfileScreen() {
       setUser(remoteUser);
       setMonthlySalary(remoteUser.monthly_income ? remoteUser.monthly_income.toString() : '');
     } catch (error) {
-      console.error('Failed to fetch user profile:', error);
     } finally {
       setLoading(false);
     }
@@ -113,7 +113,7 @@ export default function ProfileScreen() {
         await authApi.updateProfile({
           name: user.name,
           monthly_income: amount,
-          currency: user.currency || 'Rs',
+          currency: user.currency || 'LKR',
         });
 
         // Fetch latest user profile from backend
@@ -125,21 +125,12 @@ export default function ProfileScreen() {
         Alert.alert('Error', localResult.error || 'Failed to update salary');
       }
     } catch (error) {
-      console.error('Salary update error:', error);
       Alert.alert('Error', 'Failed to update salary');
     }
   };
 
   const formatCurrency = (amount: number) => {
-    try {
-      return new Intl.NumberFormat('en-IN', {
-        style: 'currency',
-        currency: 'INR',
-        maximumFractionDigits: 2,
-      }).format(amount);
-    } catch {
-      return `Rs. ${Number(amount || 0).toLocaleString('en-IN', { maximumFractionDigits: 2, minimumFractionDigits: 2 })}`;
-    }
+    return `Rs. ${Number(amount || 0).toLocaleString('en-LK', { maximumFractionDigits: 2, minimumFractionDigits: 2 })}`;
   };
 
   const profileItems = [
@@ -147,12 +138,6 @@ export default function ProfileScreen() {
       title: 'Edit Profile',
       icon: 'person-outline',
       onPress: handleEditProfile,
-    },
-    {
-      title: 'Income Management',
-      icon: 'trending-up-outline',
-      onPress: handleIncomeManagement,
-      subtitle: 'Manage your income sources',
     },
     {
       title: 'Monthly Salary',
@@ -174,15 +159,17 @@ export default function ProfileScreen() {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: Colors[isDarkMode ? 'dark' : 'light'].background }]}>
-      <ScrollView style={styles.scrollView}>
+      
         {/* Header */}
-        <View style={styles.header}>
-          <Text style={[styles.title, { color: Colors[isDarkMode ? 'dark' : 'light'].text }]}>
-            Profile
-          </Text>
-        </View>
+        <PageHeader
+          title={"PROFILE"}
+          leftIconName="person-outline"
+          rightIconName="notifications-outline"
+          onLeftPress={() => router.push('/profile')}
+        />
 
         {/* User Info Card */}
+        <ScrollView style={styles.scrollView}>
         <View style={[styles.userCard, { backgroundColor: Colors[isDarkMode ? 'dark' : 'light'].background, borderColor: Colors[isDarkMode ? 'dark' : 'light'].icon + '20' }]}>
           <View style={styles.avatarContainer}>
             <View style={[styles.avatar, { backgroundColor: Colors[isDarkMode ? 'dark' : 'light'].tint }]}>
@@ -379,18 +366,10 @@ export default function ProfileScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    paddingTop: 40,
+    paddingTop: 10,
   },
   scrollView: {
     flex: 1,
-  },
-  header: {
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: 'bold',
   },
   userCard: {
     marginHorizontal: 20,
@@ -486,6 +465,7 @@ const styles = StyleSheet.create({
   settingSubtext: {
     fontSize: 14,
     marginTop: 2,
+    marginLeft: 12,
   },
   modalContainer: {
     flex: 1,

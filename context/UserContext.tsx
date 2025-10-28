@@ -37,7 +37,6 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
       }
     } catch (error) {
-      console.error('Auth check error:', error);
     } finally {
       setIsLoading(false);
     }
@@ -48,7 +47,6 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
       await AsyncStorage.removeItem('userId');
       setUser(null);
     } catch (error) {
-      console.error('Logout error:', error);
     }
   };
 

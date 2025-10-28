@@ -6,7 +6,6 @@ const db = SQLite.openDatabaseSync('expenseTracker_v5.db');
 // Add this function to drop and recreate database
 export const resetDatabase = () => {
   try {
-    console.log('Resetting database...');
     
     // Drop all tables
     db.execSync('DROP TABLE IF EXISTS savings_transactions;');
@@ -17,14 +16,13 @@ export const resetDatabase = () => {
     db.execSync('DROP TABLE IF EXISTS expense_categories;');
     db.execSync('DROP TABLE IF EXISTS users;');
     
-    console.log('All tables dropped, reinitializing...');
+    
     
     // Recreate with new schema
     initDatabase();
     
-    console.log('Database reset successfully');
+    
   } catch (error) {
-    console.error('Database reset error:', error);
     throw error;
   }
 };
@@ -32,7 +30,6 @@ export const resetDatabase = () => {
 // Initialize database with comprehensive structure
 export const initDatabase = () => {
   try {
-    console.log('Initializing database...');
     
     // Users table with all required columns
     db.execSync(`
@@ -185,9 +182,8 @@ export const initDatabase = () => {
     db.execSync(`CREATE INDEX IF NOT EXISTS idx_budgets_user_active ON budgets (user_id, is_active);`);
     db.execSync(`CREATE INDEX IF NOT EXISTS idx_savings_goals_user ON savings_goals (user_id, is_active);`);
 
-    console.log('Database initialized successfully with comprehensive structure');
+    
   } catch (error) {
-    console.error('Database initialization error:', error);
     throw error;
   }
 };
@@ -199,10 +195,8 @@ const hashPassword = async (password: string): Promise<string> => {
       Crypto.CryptoDigestAlgorithm.SHA256,
       password
     );
-    console.log('Password hashed successfully');
     return hashed;
   } catch (error) {
-    console.error('Password hashing error:', error);
     throw error;
   }
 };
@@ -210,7 +204,6 @@ const hashPassword = async (password: string): Promise<string> => {
 // Insert default expense categories
 const insertDefaultCategories = async (userId: number) => {
   try {
-    console.log('Inserting default categories for user:', userId);
     
     const defaultCategories = [
       { name: 'Food & Dining', color: '#FF6B6B', icon: '🍽️' },
@@ -232,9 +225,8 @@ const insertDefaultCategories = async (userId: number) => {
       );
     }
     
-    console.log('Default categories inserted successfully');
+    
   } catch (error) {
-    console.error('Error inserting default categories:', error);
     throw error;
   }
 };
@@ -246,11 +238,8 @@ export const checkUserExists = (email: string) => {
       'SELECT id, name, email FROM users WHERE email = ?',
       [email.toLowerCase()]
     ) as any;
-    
-    console.log('User check result for', email, ':', result);
     return result;
   } catch (error) {
-    console.error('Error checking user exists:', error);
     return null;
   }
 };
@@ -259,10 +248,8 @@ export const checkUserExists = (email: string) => {
 export const getAllUsers = () => {
   try {
     const result = db.getAllSync('SELECT id, name, email FROM users') as any[];
-    console.log('All users in database:', result);
     return result;
   } catch (error) {
-    console.error('Error getting all users:', error);
     return [];
   }
 };
@@ -270,10 +257,8 @@ export const getAllUsers = () => {
 // Register user and create default categories
 export const registerUser = async (name: string, email: string, password: string) => {
   try {
-    console.log('Registering user:', { name, email });
     
     const hashedPassword = await hashPassword(password);
-    console.log('Password hashed, starting transaction...');
     
     // Start transaction
     db.execSync('BEGIN TRANSACTION;');
@@ -285,17 +270,14 @@ export const registerUser = async (name: string, email: string, password: string
     );
     
     const userId = userResult.lastInsertRowId as number;
-    console.log('User inserted with ID:', userId);
     
     // Insert default categories for the user
     await insertDefaultCategories(userId);
     
     db.execSync('COMMIT;');
-    console.log('User registration completed successfully');
     
     return { success: true, userId };
   } catch (error: any) {
-    console.error('Registration error:', error);
     db.execSync('ROLLBACK;');
     
     if (error.message.includes('UNIQUE constraint failed')) {
@@ -308,35 +290,26 @@ export const registerUser = async (name: string, email: string, password: string
 // Login user function with enhanced debugging
 export const loginUser = async (email: string, password: string) => {
   try {
-    console.log('Login attempt for:', email);
     
     // First check if user exists
     const userExists = checkUserExists(email);
     if (!userExists) {
-      console.log('User does not exist in database');
       return { success: false, error: 'User not found. Please check your email or sign up.' };
     }
     
-    console.log('User exists, hashing password...');
     const hashedPassword = await hashPassword(password);
-    console.log('Password hashed, querying database...');
     
     const result = db.getFirstSync(
       'SELECT id, name, email, monthly_income, currency FROM users WHERE email = ? AND password = ?',
       [email.toLowerCase(), hashedPassword]
     ) as any;
     
-    console.log('Database query result:', result);
-    
     if (result) {
-      console.log('Login successful for user:', result.name);
       return { success: true, user: result };
     } else {
-      console.log('Password mismatch or user not found');
       return { success: false, error: 'Invalid password. Please try again.' };
     }
   } catch (error) {
-    console.error('Login error details:', error);
     const message = error instanceof Error ? error.message : String(error);
     return { success: false, error: `Login failed: ${message || 'Unknown error'}` };
   }
@@ -345,17 +318,13 @@ export const loginUser = async (email: string, password: string) => {
 // Get user by ID (basic info)
 export const getUserBasicInfoById = async (userId: number) => {
   try {
-    console.log('Getting user by ID:', userId);
     
     const result = db.getFirstSync(
       'SELECT id, name, email, monthly_income, currency FROM users WHERE id = ?',
       [userId]
     ) as any;
-    
-    console.log('User found:', result);
     return result || null;
   } catch (error) {
-    console.error('Get user error:', error);
     return null;
   }
 };
@@ -373,7 +342,6 @@ export const updateUserMonthlyIncome = async (userId: number, monthlyIncome: num
     ) as any;
     return { success: true, user: updated };
   } catch (error) {
-    console.error('Update monthly income error:', error);
     return { success: false, error: 'Failed to update monthly income' };
   }
 };
@@ -423,7 +391,6 @@ export const updateUserProfile = (userId: number, updateData: {
     
     return { success: true, user: updatedUser };
   } catch (error) {
-    console.error('Update user profile error:', error);
     return { success: false, error: 'Failed to update profile' };
   }
 };
@@ -433,7 +400,6 @@ export const getUserById = (userId: number) => {
   try {
     return db.getFirstSync('SELECT * FROM users WHERE id = ?', [userId]);
   } catch (error) {
-    console.error('Get user error:', error);
     return null;
   }
 };

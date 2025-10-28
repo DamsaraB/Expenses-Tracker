@@ -76,7 +76,6 @@ export class SyncService {
           );
         }
       } catch (error) {
-        console.error('Sync error for category:', category.id, error);
       }
     }
   }
@@ -123,7 +122,6 @@ export class SyncService {
         }
       }
     } catch (error) {
-      console.error('Error syncing categories:', error);
     }
   }
 
@@ -173,9 +171,8 @@ export class SyncService {
           [user.id]
         );
 
-        console.log('User profile synced successfully:', user.id);
+        
       } catch (error) {
-        console.error('Sync error for user:', user.id, error);
       }
     }
   }
@@ -204,7 +201,7 @@ export class SyncService {
             serverUser.id,
           ]
         );
-        console.log('User profile pulled from server successfully');
+        
       } else {
         // INSERT user if not exists
         db.runSync(
@@ -220,10 +217,9 @@ export class SyncService {
             serverUser.updated_at ?? new Date().toISOString(),
           ]
         );
-        console.log('User profile inserted from server successfully');
+        
       }
     } catch (error) {
-      console.error('Error syncing user profile:', error);
     }
   }
 
@@ -245,7 +241,6 @@ export class SyncService {
     for (const expense of pendingExpenses) {
       // Skip if category_id is invalid (0 or undefined)
       if (!expense.category_id || expense.category_id === 0) {
-        console.warn('Skipping expense with invalid category_id:', expense.id, expense.category_id);
         continue;
       }
       try {
@@ -277,7 +272,6 @@ export class SyncService {
           );
         }
       } catch (error) {
-        console.error('Sync error for expense:', expense.id, error);
       }
     }
   }
@@ -294,7 +288,6 @@ export class SyncService {
       for (const serverExpense of serverExpenses) {
         // ENSURE user_id is always provided
         if (!serverExpense.user_id) {
-          console.warn('Skipping expense with no user_id:', serverExpense.id);
           continue;
         }
 
@@ -335,7 +328,6 @@ export class SyncService {
         }
       }
     } catch (error) {
-      console.error('Error syncing expenses:', error);
     }
   }
 
@@ -390,7 +382,6 @@ export class SyncService {
           );
         }
       } catch (error) {
-        console.error('Sync error for savings goal:', goal.id, error);
       }
     }
   }
@@ -444,7 +435,6 @@ export class SyncService {
         }
       }
     } catch (error) {
-      console.error('Error syncing savings goals:', error);
     }
   }
 
@@ -473,7 +463,6 @@ export class SyncService {
         ) as { server_id?: number };
 
         if (!localGoal?.server_id) {
-          console.warn('Skipping transaction - goal not synced yet:', transaction.id);
           continue;
         }
 
@@ -493,7 +482,6 @@ export class SyncService {
           );
         }
       } catch (error) {
-        console.error('Sync error for savings transaction:', transaction.id, error);
       }
     }
   }
@@ -537,7 +525,6 @@ export class SyncService {
         }
       }
     } catch (error) {
-      console.error('Error syncing savings transactions:', error);
     }
   }
 
@@ -549,7 +536,6 @@ export class SyncService {
       for (const serverBudget of serverBudgets) {
         // ENSURE user_id is always provided
         if (!serverBudget.user_id) {
-          console.warn('Skipping budget with no user_id:', serverBudget.id);
           continue;
         }
 
@@ -577,7 +563,6 @@ export class SyncService {
         }
       }
     } catch (error) {
-      console.error('Error syncing budgets:', error);
     }
   }
 
@@ -631,7 +616,6 @@ export class SyncService {
           );
         }
       } catch (error) {
-        console.error('Error syncing income:', income.id, error);
       }
     }
   }
@@ -682,7 +666,6 @@ private async pullIncomeUpdates() {
       }
     }
   } catch (error) {
-    console.error('Error pulling income updates:', error);
   }
 }
 }

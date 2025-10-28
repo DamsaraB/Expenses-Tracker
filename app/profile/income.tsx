@@ -1,16 +1,16 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
-import React, { useEffect, useState } from 'react';
+import { useFocusEffect, useRouter } from 'expo-router';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
-  ActivityIndicator,
-  Alert,
-  Modal,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
+    ActivityIndicator,
+    Alert,
+    Modal,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Colors } from '../../constants/theme';
@@ -58,6 +58,14 @@ export default function IncomeScreen() {
     loadTotalIncome();
   }, []);
 
+  // Real-time updates: Reload data whenever screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      loadIncomes();
+      loadTotalIncome();
+    }, [])
+  );
+
   const loadIncomes = async () => {
     try {
       setLoading(true);
@@ -67,7 +75,6 @@ export default function IncomeScreen() {
       });
       setIncomes(response);
     } catch (error) {
-      console.error('Failed to load incomes:', error);
       Alert.alert('Error', 'Failed to load income records');
     } finally {
       setLoading(false);
@@ -83,7 +90,6 @@ export default function IncomeScreen() {
       const response = await incomeApi.total(startDate, endDate);
       setTotalIncome(response.total_income);
     } catch (error) {
-      console.error('Failed to load total income:', error);
     }
   };
 
@@ -155,7 +161,6 @@ export default function IncomeScreen() {
       loadIncomes();
       loadTotalIncome();
     } catch (error) {
-      console.error('Failed to save income:', error);
       Alert.alert('Error', 'Failed to save income record');
     }
   };
@@ -176,7 +181,6 @@ export default function IncomeScreen() {
               loadIncomes();
               loadTotalIncome();
             } catch (error) {
-              console.error('Failed to delete income:', error);
               Alert.alert('Error', 'Failed to delete income record');
             }
           },
@@ -186,11 +190,7 @@ export default function IncomeScreen() {
   };
 
   const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-IN', {
-      style: 'currency',
-      currency: 'INR',
-      maximumFractionDigits: 2,
-    }).format(amount);
+    return `Rs. ${Number(amount || 0).toLocaleString('en-LK', { maximumFractionDigits: 2, minimumFractionDigits: 2 })}`;
   };
 
   const formatDate = (dateString: string) => {

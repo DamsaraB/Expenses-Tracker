@@ -50,7 +50,6 @@ export const useDatabase = () => {
         savingsSummary
       });
     } catch (error) {
-      console.error('Error refreshing data:', error);
     } finally {
       setLoading(false);
     }

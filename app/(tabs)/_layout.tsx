@@ -31,10 +31,10 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="budget"
+        name="report"
         options={{
-          title: 'Budget',
-          tabBarIcon: ({ color }) => <Ionicons name="wallet" size={24} color={color} />,
+          title: 'Reports',
+          tabBarIcon: ({ color }) => <Ionicons name="analytics" size={24} color={color} />,
         }}
       />
       <Tabs.Screen
